@@ -1,43 +1,44 @@
 from flask_sqlalchemy import SQLAlchemy
+from flask_security.models import fsqla_v3 as fsqla
+from flask_security import UserMixin, RoleMixin
+from datetime import datetime
 
 db = SQLAlchemy()
 
+# Configure Flask-Security models
+fsqla.FsModels.set_db_info(db)
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+# Define models using Flask-Security mixins
+class Role(db.Model, fsqla.FsRoleMixin):
+    pass
+
+class User(db.Model, fsqla.FsUserMixin):
+    # Additional fields beyond the Flask-Security standard ones
     name = db.Column(db.String(80), nullable=False)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    fs_uniquifier = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=True)
     
-    roles = db.relationship('Role', secondary='user_roles', backref=db.backref('users', lazy=True))
-    
-class Role(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-    description = db.Column(db.String(200), nullable=True)
-    
-class UserRoles(db.Model):
-    __tablename__ = 'user_roles'
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey('role.id'), primary_key=True)
-    
-
+    # Add relationship to reservations
+    reservations = db.relationship('Reservation', backref='user', lazy=True)
 
 class Parking_lot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     location = db.Column(db.String(120), nullable=False)
     capacity = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship to parking spots
+    spots = db.relationship('ParkingSpot', backref='parking_lot', lazy=True, cascade='all, delete-orphan')
     
 class ParkingSpot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lot_id = db.Column(db.Integer, db.ForeignKey('parking_lot.id'), nullable=False)
     spot_number = db.Column(db.String(20), nullable=False)
     is_occupied = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    parking_lot = db.relationship('Parking_lot', backref=db.backref('spots', lazy=True))
+    # Relationship to reservations
+    reservations = db.relationship('Reservation', backref='parking_spot', lazy=True)
     
 class Reservation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,7 +46,6 @@ class Reservation(db.Model):
     spot_id = db.Column(db.Integer, db.ForeignKey('parking_spot.id'), nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
-    
-    user = db.relationship('User', backref=db.backref('reservations', lazy=True))
-    parking_spot = db.relationship('ParkingSpot', backref=db.backref('reservations', lazy=True))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='active')  # active, completed, cancelled
     

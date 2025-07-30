@@ -4,38 +4,45 @@ from sec import datastore
 
 def create_initial_data():
     """Create initial data for the application."""
-    # Create roles
+    # Create roles first
     admin_role = datastore.find_or_create_role(name='admin', description='Administrator role')
     user_role = datastore.find_or_create_role(name='user', description='Regular user role')
+    db.session.commit()  # Commit roles first
     
     # Create admin user if it doesn't exist
-    if not datastore.find_user(email='admin@parking.com'):
+    admin_user = datastore.find_user(email='admin@parking.com')
+    if not admin_user:
         admin_user = datastore.create_user(
             name='Admin User',
             username='admin',
             email='admin@parking.com',
             password=hash_password('admin123'),
-            roles=[admin_role]
+            active=True
         )
-        print(f"Created admin user: {admin_user.email}")
+        datastore.add_role_to_user(admin_user, admin_role)
+        print(f"Created admin user: {admin_user.email} with role: {admin_role.name}")
     
     # Create a test user if it doesn't exist
-    if not datastore.find_user(email='user@parking.com'):
+    test_user = datastore.find_user(email='user@parking.com')
+    if not test_user:
         test_user = datastore.create_user(
             name='Test User',
             username='testuser',
             email='user@parking.com',
             password=hash_password('password123'),
-            roles=[user_role]
+            active=True
         )
-        print(f"Created test user: {test_user.email}")
+        datastore.add_role_to_user(test_user, user_role)
+        print(f"Created test user: {test_user.email} with role: {user_role.name}")
+    
+    db.session.commit()  # Commit users and roles
     
     # Create parking lots if they don't exist
     parking_lots_data = [
-        {'name': 'Central Plaza Parking', 'location': 'Downtown', 'capacity': 100},
-        {'name': 'Mall Parking Garage', 'location': 'Shopping Mall', 'capacity': 200},
-        {'name': 'Business District Lot', 'location': 'Uptown', 'capacity': 80},
-        {'name': 'City Center Parking', 'location': 'Downtown', 'capacity': 150},
+        {'name': 'Central Plaza Parking', 'location': 'Downtown', 'capacity': 100, 'price_per_hour': 8.0},
+        {'name': 'Mall Parking Garage', 'location': 'Shopping Mall', 'capacity': 200, 'price_per_hour': 5.0},
+        {'name': 'Business District Lot', 'location': 'Uptown', 'capacity': 80, 'price_per_hour': 12.0},
+        {'name': 'City Center Parking', 'location': 'Downtown', 'capacity': 150, 'price_per_hour': 10.0},
     ]
     
     for lot_data in parking_lots_data:
@@ -44,7 +51,8 @@ def create_initial_data():
             lot = Parking_lot(
                 name=lot_data['name'],
                 location=lot_data['location'],
-                capacity=lot_data['capacity']
+                capacity=lot_data['capacity'],
+                price_per_hour=lot_data['price_per_hour']
             )
             db.session.add(lot)
             db.session.flush()  # Get the ID

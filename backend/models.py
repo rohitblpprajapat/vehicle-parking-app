@@ -25,7 +25,9 @@ class Parking_lot(db.Model):
     name = db.Column(db.String(80), unique=True, nullable=False)
     location = db.Column(db.String(120), nullable=False)
     capacity = db.Column(db.Integer, nullable=False)
+    price_per_hour = db.Column(db.Float, nullable=False, default=5.0)  # Price per hour
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship to parking spots
     spots = db.relationship('ParkingSpot', backref='parking_lot', lazy=True, cascade='all, delete-orphan')

@@ -15,6 +15,11 @@ class Config:
     SECURITY_CHANGEABLE = True    # Enable password change
     SECURITY_TRACKABLE = True     # Track user login stats
     
+    # Enable token authentication
+    SECURITY_TOKEN_AUTHENTICATION_KEY = 'Authentication-Token'
+    SECURITY_TOKEN_AUTHENTICATION_HEADER = 'Authentication-Token'
+    SECURITY_TOKEN_MAX_AGE = 86400  # 24 hours
+    
     # Disable all email features
     SECURITY_SEND_PASSWORD_CHANGE_EMAIL = False
     SECURITY_SEND_PASSWORD_RESET_EMAIL = False

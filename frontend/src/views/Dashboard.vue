@@ -8,6 +8,7 @@
                 <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
                 <router-link to="/parking-lots" class="nav-link">Parking Lots</router-link>
                 <router-link to="/reservations" class="nav-link">My Reservations</router-link>
+                <span class="user-info">Welcome, {{ userInfo.name }}</span>
                 <button @click="logout" class="btn btn-logout">Logout</button>
             </div>
         </nav>
@@ -46,16 +47,22 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { logout as authLogout, getUserInfo } from '../utils/auth.js'
 
 const router = useRouter()
+const userInfo = ref({})
 
 // Reactive data
 const availableSpots = ref(42)
 const myReservations = ref(3)
 const totalLots = ref(8)
 
+// Get user info
+userInfo.value = getUserInfo()
+
+// Logout function
 const logout = () => {
-    localStorage.removeItem('authToken')
+    authLogout()
     router.push('/login')
 }
 
@@ -89,6 +96,14 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+.user-info {
+    color: #333;
+    font-weight: 500;
+    background-color: #f8f9fa;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
 }
 
 .nav-link {

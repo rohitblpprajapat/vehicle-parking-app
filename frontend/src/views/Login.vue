@@ -120,15 +120,22 @@ const handleLogin = async () => {
         const data = await response.json()
 
         if (response.ok) {
-            // Store the token
+            // Store the token and user info
             localStorage.setItem('authToken', data.response.user.authentication_token)
             localStorage.setItem('userEmail', data.response.user.email)
+            localStorage.setItem('userName', data.response.user.name)
+            localStorage.setItem('userRoles', JSON.stringify(data.response.user.roles))
 
             showMessage('Login successful!', 'success')
 
-            // Redirect to dashboard after a short delay
+            // Redirect based on user role
             setTimeout(() => {
-                router.push('/dashboard')
+                const roles = data.response.user.roles || []
+                if (roles.includes('admin')) {
+                    router.push('/admin/dashboard')
+                } else {
+                    router.push('/dashboard')
+                }
             }, 1000)
         } else {
             showMessage(data.response.errors?.[0] || 'Login failed', 'error')

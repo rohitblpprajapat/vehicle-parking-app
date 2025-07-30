@@ -7,6 +7,7 @@ from flask_security import Security
 from initial_data import create_initial_data
 from flask_migrate import Migrate
 from api_routes import api
+from redis_cache import cache, redis_cache
 
 def create_app():
     app = Flask(__name__)
@@ -14,6 +15,8 @@ def create_app():
     
     # Initialize extensions
     migrate = Migrate(app, db)
+    cache.init_app(app)
+    redis_cache.init_app(app)
     
     # Configure CORS with more permissive settings for development
     CORS(app, 

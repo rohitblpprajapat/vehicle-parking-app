@@ -7,6 +7,12 @@ class Config:
     SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT') or str(secrets.SystemRandom().getrandbits(128))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # Redis Configuration
+    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
+    CACHE_TYPE = 'redis'
+    CACHE_REDIS_URL = REDIS_URL
+    CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes default
+    
     # Flask-Security settings
     SECURITY_REGISTERABLE = True
     SECURITY_CONFIRMABLE = False  # Disable email confirmation

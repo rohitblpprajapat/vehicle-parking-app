@@ -1,222 +1,240 @@
 <template>
     <div class="admin-summary">
-        <!-- Header Section -->
-        <div class="summary-header">
-            <h1>Administrative Dashboard</h1>
-            <div class="date-range-selector">
-                <select v-model="selectedPeriod" @change="loadAnalytics">
-                    <option value="7">Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
-                    <option value="90">Last 3 Months</option>
-                    <option value="365">Last Year</option>
-                    <option value="all">All Time</option>
-                </select>
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h3>Admin Analytics</h3>
             </div>
-        </div>
+            <div class="nav-links">
+                <router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link>
+                <router-link to="/admin/parking-lots" class="nav-link">Manage Lots</router-link>
+                <router-link to="/admin/users" class="nav-link">Manage Users</router-link>
+                <router-link to="/admin/reservations" class="nav-link">All Reservations</router-link>
+                <router-link to="/admin/summary" class="nav-link">Analytics</router-link>
+                <button @click="logout" class="btn btn-logout">Logout</button>
+            </div>
+        </nav>
 
-        <!-- Key Metrics Overview -->
-        <div class="metrics-overview">
-            <div class="metric-card revenue">
-                <div class="metric-icon">💰</div>
-                <div class="metric-content">
-                    <h3>Total Revenue</h3>
-                    <p class="metric-value">${{ totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 }) }}</p>
-                    <span class="metric-change" :class="revenueChange >= 0 ? 'positive' : 'negative'">
-                        {{ revenueChange >= 0 ? '+' : '' }}{{ revenueChange.toFixed(1) }}%
-                    </span>
+        <main class="dashboard-content">
+            <div class="container">
+                <!-- Header Section -->
+                <div class="summary-header">
+                    <h1>Administrative Dashboard</h1>
+                    <div class="date-range-selector">
+                        <select v-model="selectedPeriod" @change="loadAnalytics">
+                            <option value="7">Last 7 Days</option>
+                            <option value="30">Last 30 Days</option>
+                            <option value="90">Last 3 Months</option>
+                            <option value="365">Last Year</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
 
-            <div class="metric-card bookings">
-                <div class="metric-icon">🚗</div>
-                <div class="metric-content">
-                    <h3>Total Bookings</h3>
-                    <p class="metric-value">{{ totalBookings.toLocaleString() }}</p>
-                    <span class="metric-change" :class="bookingsChange >= 0 ? 'positive' : 'negative'">
-                        {{ bookingsChange >= 0 ? '+' : '' }}{{ bookingsChange.toFixed(1) }}%
-                    </span>
+                <!-- Key Metrics Overview -->
+                <div class="metrics-overview">
+                    <div class="metric-card revenue">
+                        <div class="metric-icon">💰</div>
+                        <div class="metric-content">
+                            <h3>Total Revenue</h3>
+                            <p class="metric-value">${{ totalRevenue.toLocaleString('en-US', {
+                                minimumFractionDigits: 2
+                            }) }}
+                            </p>
+                            <span class="metric-change" :class="revenueChange >= 0 ? 'positive' : 'negative'">
+                                {{ revenueChange >= 0 ? '+' : '' }}{{ revenueChange.toFixed(1) }}%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card bookings">
+                        <div class="metric-icon">🚗</div>
+                        <div class="metric-content">
+                            <h3>Total Bookings</h3>
+                            <p class="metric-value">{{ totalBookings.toLocaleString() }}</p>
+                            <span class="metric-change" :class="bookingsChange >= 0 ? 'positive' : 'negative'">
+                                {{ bookingsChange >= 0 ? '+' : '' }}{{ bookingsChange.toFixed(1) }}%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card occupancy">
+                        <div class="metric-icon">📊</div>
+                        <div class="metric-content">
+                            <h3>Avg Occupancy</h3>
+                            <p class="metric-value">{{ averageOccupancy.toFixed(1) }}%</p>
+                            <span class="metric-change" :class="occupancyChange >= 0 ? 'positive' : 'negative'">
+                                {{ occupancyChange >= 0 ? '+' : '' }}{{ occupancyChange.toFixed(1) }}%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card users">
+                        <div class="metric-icon">👥</div>
+                        <div class="metric-content">
+                            <h3>Active Users</h3>
+                            <p class="metric-value">{{ activeUsers.toLocaleString() }}</p>
+                            <span class="metric-change" :class="usersChange >= 0 ? 'positive' : 'negative'">
+                                {{ usersChange >= 0 ? '+' : '' }}{{ usersChange.toFixed(1) }}%
+                            </span>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="metric-card occupancy">
-                <div class="metric-icon">📊</div>
-                <div class="metric-content">
-                    <h3>Avg Occupancy</h3>
-                    <p class="metric-value">{{ averageOccupancy.toFixed(1) }}%</p>
-                    <span class="metric-change" :class="occupancyChange >= 0 ? 'positive' : 'negative'">
-                        {{ occupancyChange >= 0 ? '+' : '' }}{{ occupancyChange.toFixed(1) }}%
-                    </span>
+                <!-- Main Analytics Charts -->
+                <div class="main-charts">
+                    <!-- Revenue Over Time -->
+                    <div class="chart-section">
+                        <div class="chart-header">
+                            <h2>Revenue Analytics</h2>
+                            <div class="chart-controls">
+                                <button v-for="period in ['daily', 'weekly', 'monthly']" :key="period"
+                                    @click="revenueChartPeriod = period; updateRevenueChart()"
+                                    :class="{ active: revenueChartPeriod === period }" class="period-btn">
+                                    {{ period.charAt(0).toUpperCase() + period.slice(1) }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas ref="revenueChart" class="chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Parking Lot Performance -->
+                    <div class="chart-section">
+                        <h2>Parking Lot Performance</h2>
+                        <div class="chart-container">
+                            <canvas ref="lotPerformanceChart" class="chart"></canvas>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="metric-card users">
-                <div class="metric-icon">👥</div>
-                <div class="metric-content">
-                    <h3>Active Users</h3>
-                    <p class="metric-value">{{ activeUsers.toLocaleString() }}</p>
-                    <span class="metric-change" :class="usersChange >= 0 ? 'positive' : 'negative'">
-                        {{ usersChange >= 0 ? '+' : '' }}{{ usersChange.toFixed(1) }}%
-                    </span>
+                <!-- Secondary Charts Grid -->
+                <div class="secondary-charts">
+                    <!-- Booking Trends -->
+                    <div class="chart-card">
+                        <h3>Booking Trends</h3>
+                        <div class="chart-container">
+                            <canvas ref="bookingTrendsChart" class="chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Occupancy Heatmap -->
+                    <div class="chart-card">
+                        <h3>Hourly Occupancy Pattern</h3>
+                        <div class="chart-container">
+                            <canvas ref="occupancyHeatmapChart" class="chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Revenue Distribution -->
+                    <div class="chart-card">
+                        <h3>Revenue by Parking Lot</h3>
+                        <div class="chart-container">
+                            <canvas ref="revenueDistributionChart" class="chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- User Activity -->
+                    <div class="chart-card">
+                        <h3>User Activity Patterns</h3>
+                        <div class="chart-container">
+                            <canvas ref="userActivityChart" class="chart"></canvas>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Main Analytics Charts -->
-        <div class="main-charts">
-            <!-- Revenue Over Time -->
-            <div class="chart-section">
-                <div class="chart-header">
-                    <h2>Revenue Analytics</h2>
-                    <div class="chart-controls">
-                        <button 
-                            v-for="period in ['daily', 'weekly', 'monthly']" 
-                            :key="period"
-                            @click="revenueChartPeriod = period; updateRevenueChart()"
-                            :class="{ active: revenueChartPeriod === period }"
-                            class="period-btn"
-                        >
-                            {{ period.charAt(0).toUpperCase() + period.slice(1) }}
+                <!-- Detailed Analytics Tables -->
+                <div class="analytics-tables">
+                    <!-- Top Performing Lots -->
+                    <div class="table-section">
+                        <h2>Top Performing Parking Lots</h2>
+                        <div class="table-container">
+                            <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Parking Lot</th>
+                                        <th>Revenue</th>
+                                        <th>Bookings</th>
+                                        <th>Avg Occupancy</th>
+                                        <th>Avg Duration</th>
+                                        <th>Revenue/Hour</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="lot in topPerformingLots" :key="lot.id">
+                                        <td class="lot-name">{{ lot.name }}</td>
+                                        <td class="revenue">${{ lot.revenue.toFixed(2) }}</td>
+                                        <td>{{ lot.bookings }}</td>
+                                        <td>{{ lot.occupancy.toFixed(1) }}%</td>
+                                        <td>{{ lot.avgDuration.toFixed(1) }}h</td>
+                                        <td>${{ lot.revenuePerHour.toFixed(2) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions -->
+                    <div class="table-section">
+                        <h2>Recent High-Value Transactions</h2>
+                        <div class="table-container">
+                            <table class="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>User</th>
+                                        <th>Parking Lot</th>
+                                        <th>Duration</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="transaction in recentTransactions" :key="transaction.id">
+                                        <td>{{ formatDate(transaction.date) }}</td>
+                                        <td>{{ transaction.userName }}</td>
+                                        <td>{{ transaction.parkingLot }}</td>
+                                        <td>{{ transaction.duration.toFixed(1) }}h</td>
+                                        <td class="amount">${{ transaction.amount.toFixed(2) }}</td>
+                                        <td>
+                                            <span class="status-badge" :class="transaction.status.toLowerCase()">
+                                                {{ transaction.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export and Reports Section -->
+                <div class="reports-section">
+                    <h2>Reports & Export</h2>
+                    <div class="report-actions">
+                        <button @click="exportRevenueReport" class="btn btn-primary">
+                            📊 Export Revenue Report
+                        </button>
+                        <button @click="exportOccupancyReport" class="btn btn-secondary">
+                            📈 Export Occupancy Report
+                        </button>
+                        <button @click="exportUserReport" class="btn btn-secondary">
+                            👥 Export User Report
+                        </button>
+                        <button @click="generatePredictiveReport" class="btn btn-accent">
+                            🔮 Generate Predictive Analysis
                         </button>
                     </div>
                 </div>
-                <div class="chart-container">
-                    <canvas ref="revenueChart" class="chart"></canvas>
+
+                <!-- Loading Overlay -->
+                <div v-if="loading" class="loading-overlay">
+                    <div class="loading-spinner"></div>
+                    <p>Loading analytics data...</p>
                 </div>
             </div>
-
-            <!-- Parking Lot Performance -->
-            <div class="chart-section">
-                <h2>Parking Lot Performance</h2>
-                <div class="chart-container">
-                    <canvas ref="lotPerformanceChart" class="chart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Secondary Charts Grid -->
-        <div class="secondary-charts">
-            <!-- Booking Trends -->
-            <div class="chart-card">
-                <h3>Booking Trends</h3>
-                <div class="chart-container">
-                    <canvas ref="bookingTrendsChart" class="chart"></canvas>
-                </div>
-            </div>
-
-            <!-- Occupancy Heatmap -->
-            <div class="chart-card">
-                <h3>Hourly Occupancy Pattern</h3>
-                <div class="chart-container">
-                    <canvas ref="occupancyHeatmapChart" class="chart"></canvas>
-                </div>
-            </div>
-
-            <!-- Revenue Distribution -->
-            <div class="chart-card">
-                <h3>Revenue by Parking Lot</h3>
-                <div class="chart-container">
-                    <canvas ref="revenueDistributionChart" class="chart"></canvas>
-                </div>
-            </div>
-
-            <!-- User Activity -->
-            <div class="chart-card">
-                <h3>User Activity Patterns</h3>
-                <div class="chart-container">
-                    <canvas ref="userActivityChart" class="chart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Detailed Analytics Tables -->
-        <div class="analytics-tables">
-            <!-- Top Performing Lots -->
-            <div class="table-section">
-                <h2>Top Performing Parking Lots</h2>
-                <div class="table-container">
-                    <table class="analytics-table">
-                        <thead>
-                            <tr>
-                                <th>Parking Lot</th>
-                                <th>Revenue</th>
-                                <th>Bookings</th>
-                                <th>Avg Occupancy</th>
-                                <th>Avg Duration</th>
-                                <th>Revenue/Hour</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="lot in topPerformingLots" :key="lot.id">
-                                <td class="lot-name">{{ lot.name }}</td>
-                                <td class="revenue">${{ lot.revenue.toFixed(2) }}</td>
-                                <td>{{ lot.bookings }}</td>
-                                <td>{{ lot.occupancy.toFixed(1) }}%</td>
-                                <td>{{ lot.avgDuration.toFixed(1) }}h</td>
-                                <td>${{ lot.revenuePerHour.toFixed(2) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Recent Transactions -->
-            <div class="table-section">
-                <h2>Recent High-Value Transactions</h2>
-                <div class="table-container">
-                    <table class="analytics-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>User</th>
-                                <th>Parking Lot</th>
-                                <th>Duration</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="transaction in recentTransactions" :key="transaction.id">
-                                <td>{{ formatDate(transaction.date) }}</td>
-                                <td>{{ transaction.userName }}</td>
-                                <td>{{ transaction.parkingLot }}</td>
-                                <td>{{ transaction.duration.toFixed(1) }}h</td>
-                                <td class="amount">${{ transaction.amount.toFixed(2) }}</td>
-                                <td>
-                                    <span class="status-badge" :class="transaction.status.toLowerCase()">
-                                        {{ transaction.status }}
-                                    </span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Export and Reports Section -->
-        <div class="reports-section">
-            <h2>Reports & Export</h2>
-            <div class="report-actions">
-                <button @click="exportRevenueReport" class="btn btn-primary">
-                    📊 Export Revenue Report
-                </button>
-                <button @click="exportOccupancyReport" class="btn btn-secondary">
-                    📈 Export Occupancy Report
-                </button>
-                <button @click="exportUserReport" class="btn btn-secondary">
-                    👥 Export User Report
-                </button>
-                <button @click="generatePredictiveReport" class="btn btn-accent">
-                    🔮 Generate Predictive Analysis
-                </button>
-            </div>
-        </div>
-
-        <!-- Loading Overlay -->
-        <div v-if="loading" class="loading-overlay">
-            <div class="loading-spinner"></div>
-            <p>Loading analytics data...</p>
-        </div>
+        </main>
     </div>
 </template>
 
@@ -233,10 +251,10 @@ export default {
             selectedPeriod: '30',
             revenueChartPeriod: 'daily',
             loading: true,
-            
+
             // Analytics Data
             analyticsData: null,
-            
+
             // Charts
             charts: {
                 revenue: null,
@@ -246,7 +264,7 @@ export default {
                 revenueDistribution: null,
                 userActivity: null
             },
-            
+
             // Computed metrics
             previousPeriodData: null
         }
@@ -308,23 +326,29 @@ export default {
     methods: {
         async loadAnalytics() {
             try {
-                const token = localStorage.getItem('token')
-                
+                const token = localStorage.getItem('authToken')
+
                 // Load current period data
-                const response = await fetch(`/api/v1/admin/analytics?days=${this.selectedPeriod}`, {
+                const response = await fetch(`http://127.0.0.1:5000/api/v1/admin/analytics?days=${this.selectedPeriod}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
-                this.analyticsData = await response.json()
+                if (response.ok) {
+                    this.analyticsData = await response.json()
+                }
 
                 // Load previous period for comparison
-                const prevResponse = await fetch(`/api/v1/admin/analytics/previous?days=${this.selectedPeriod}`, {
+                const prevResponse = await fetch(`http://127.0.0.1:5000/api/v1/admin/analytics/previous?days=${this.selectedPeriod}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
-                this.previousPeriodData = await prevResponse.json()
+                if (prevResponse.ok) {
+                    this.previousPeriodData = await prevResponse.json()
+                }
 
                 this.$nextTick(() => {
                     this.createCharts()
@@ -512,7 +536,7 @@ export default {
 
             // Create hourly occupancy data
             const hourlyData = this.analyticsData?.hourly_occupancy || []
-            const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`)
+            const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`)
             const occupancyByHour = hours.map(hour => {
                 const hourData = hourlyData.find(item => item.hour === parseInt(hour))
                 return hourData ? hourData.occupancy : 0
@@ -640,10 +664,11 @@ export default {
         },
         async exportRevenueReport() {
             try {
-                const token = localStorage.getItem('token')
-                const response = await fetch(`/api/v1/admin/reports/revenue?days=${this.selectedPeriod}`, {
+                const token = localStorage.getItem('authToken')
+                const response = await fetch(`http://127.0.0.1:5000/api/v1/admin/reports/revenue?days=${this.selectedPeriod}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
                 const blob = await response.blob()
@@ -660,10 +685,11 @@ export default {
         },
         async exportOccupancyReport() {
             try {
-                const token = localStorage.getItem('token')
-                const response = await fetch(`/api/v1/admin/reports/occupancy?days=${this.selectedPeriod}`, {
+                const token = localStorage.getItem('authToken')
+                const response = await fetch(`http://127.0.0.1:5000/api/v1/admin/reports/occupancy?days=${this.selectedPeriod}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
                 const blob = await response.blob()
@@ -680,10 +706,11 @@ export default {
         },
         async exportUserReport() {
             try {
-                const token = localStorage.getItem('token')
-                const response = await fetch(`/api/v1/admin/reports/users?days=${this.selectedPeriod}`, {
+                const token = localStorage.getItem('authToken')
+                const response = await fetch(`http://127.0.0.1:5000/api/v1/admin/reports/users?days=${this.selectedPeriod}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
                 const blob = await response.blob()
@@ -700,14 +727,15 @@ export default {
         },
         async generatePredictiveReport() {
             try {
-                const token = localStorage.getItem('token')
-                const response = await fetch('/api/v1/admin/reports/predictive', {
+                const token = localStorage.getItem('authToken')
+                const response = await fetch('http://127.0.0.1:5000/api/v1/admin/reports/predictive', {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
                 const data = await response.json()
-                
+
                 // Create a new window to show the predictive analysis
                 const newWindow = window.open('', '_blank')
                 newWindow.document.write(`
@@ -725,6 +753,10 @@ export default {
                 alert('Failed to generate predictive report')
             }
         },
+        logout() {
+            localStorage.removeItem('authToken')
+            this.$router.push('/login')
+        },
         formatDate(dateString) {
             return new Date(dateString).toLocaleDateString('en-US', {
                 month: 'short',
@@ -739,11 +771,64 @@ export default {
 
 <style scoped>
 .admin-summary {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+.navbar {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-brand h3 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.nav-link:hover,
+.nav-link.router-link-active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-logout {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-logout:hover {
+    background: #c82333;
+}
+
+.dashboard-content {
+    padding: 2rem;
+}
+
+.container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem;
-    background: #F8FAFC;
-    min-height: 100vh;
 }
 
 .summary-header {
@@ -787,10 +872,21 @@ export default {
     border-left: 4px solid;
 }
 
-.metric-card.revenue { border-left-color: #10B981; }
-.metric-card.bookings { border-left-color: #3B82F6; }
-.metric-card.occupancy { border-left-color: #F59E0B; }
-.metric-card.users { border-left-color: #8B5CF6; }
+.metric-card.revenue {
+    border-left-color: #10B981;
+}
+
+.metric-card.bookings {
+    border-left-color: #3B82F6;
+}
+
+.metric-card.occupancy {
+    border-left-color: #F59E0B;
+}
+
+.metric-card.users {
+    border-left-color: #8B5CF6;
+}
 
 .metric-icon {
     font-size: 2.5rem;
@@ -1083,15 +1179,20 @@ export default {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 @media (max-width: 1024px) {
     .main-charts {
         grid-template-columns: 1fr;
     }
-    
+
     .secondary-charts {
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     }
@@ -1101,25 +1202,25 @@ export default {
     .admin-summary {
         padding: 1rem;
     }
-    
+
     .summary-header {
         flex-direction: column;
         gap: 1rem;
         text-align: center;
     }
-    
+
     .metrics-overview {
         grid-template-columns: 1fr;
     }
-    
+
     .secondary-charts {
         grid-template-columns: 1fr;
     }
-    
+
     .report-actions {
         flex-direction: column;
     }
-    
+
     .chart-card .chart-container {
         height: 250px;
     }

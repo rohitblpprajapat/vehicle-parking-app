@@ -5,8 +5,11 @@
                 <h3>Manage Parking Lots</h3>
             </div>
             <div class="nav-links">
-                <router-link to="/admin" class="nav-link">Dashboard</router-link>
+                <router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link>
                 <router-link to="/admin/parking-lots" class="nav-link">Manage Lots</router-link>
+                <router-link to="/admin/users" class="nav-link">Manage Users</router-link>
+                <router-link to="/admin/reservations" class="nav-link">All Reservations</router-link>
+                <router-link to="/admin/summary" class="nav-link">Analytics</router-link>
                 <button @click="logout" class="btn btn-logout">Logout</button>
             </div>
         </nav>

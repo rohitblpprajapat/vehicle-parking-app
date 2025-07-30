@@ -6,6 +6,9 @@ from sec import datastore
 import secrets
 from functools import wraps
 from datetime import datetime
+import uuid
+import csv
+import statistics
 
 # Create API blueprint
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -100,7 +103,6 @@ def register():
         
         # Create user directly using the User model to avoid Flask-Security's email triggers
         from datetime import datetime
-        import uuid
 
         print(f"DEBUG: About to create user with name='{name}'")
         
@@ -287,6 +289,34 @@ def get_parking_lots():
     except Exception as e:
         current_app.logger.error(f"Get parking lots error: {str(e)}")
         return jsonify({'error': 'Failed to get parking lots'}), 500
+
+@api.route('/parking-lots/<int:lot_id>', methods=['GET'])
+@auth_required('token', 'session')
+def get_parking_lot_details(lot_id):
+    """Get parking lot details for regular users"""
+    try:
+        lot = Parking_lot.query.get_or_404(lot_id)
+        spots = ParkingSpot.query.filter_by(lot_id=lot_id).all()
+        
+        return jsonify({
+            'parking_lot': {
+                'id': lot.id,
+                'name': lot.name,
+                'location': lot.location,
+                'capacity': lot.capacity,
+                'price_per_hour': lot.price_per_hour,
+                'available_spots': calculate_available_spots(lot)
+            },
+            'spots': [{
+                'id': spot.id,
+                'spot_number': spot.spot_number,
+                'is_occupied': spot.is_occupied
+            } for spot in spots]
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Get parking lot details error: {str(e)}")
+        return jsonify({'error': 'Failed to get parking lot details'}), 500
 
 @api.route('/reservations', methods=['GET'])
 @auth_required('token', 'session')
@@ -1524,7 +1554,7 @@ def get_admin_analytics():
         # Parking lot performance
         lot_performance = []
         for lot in parking_lots:
-            lot_reservations = [res for res in reservations if res.parking_spot.parking_lot_id == lot.id]
+            lot_reservations = [res for res in reservations if res.parking_spot.lot_id == lot.id]
             lot_revenue = sum(res.final_cost or 0 for res in lot_reservations)
             lot_bookings = len(lot_reservations)
             lot_occupancy = (len([res for res in lot_reservations if res.status == 'active']) / lot.capacity * 100) if lot.capacity > 0 else 0
@@ -1555,20 +1585,23 @@ def get_admin_analytics():
             for hour, count in hourly_occupancy.items()
         ]
         
-        # User activity (new users and active users by date)
+        # User activity (simplified - just active users from reservations)
         user_activity = {}
-        all_users = User.query.filter(User.created_at >= start_date).all()
-        for user in all_users:
-            date_key = user.created_at.strftime('%Y-%m-%d')
-            if date_key not in user_activity:
-                user_activity[date_key] = {'new_users': 0, 'active_users': 0}
-            user_activity[date_key]['new_users'] += 1
-        
-        # Add active users per day
         for res in reservations:
             date_key = res.created_at.strftime('%Y-%m-%d')
-            if date_key in user_activity:
-                user_activity[date_key]['active_users'] += 1
+            if date_key not in user_activity:
+                user_activity[date_key] = {'new_users': 0, 'active_users': 0}
+            user_activity[date_key]['active_users'] += 1
+        
+        # Get all users count for new users approximation
+        total_users = User.query.count()
+        unique_users_in_period = len(set(res.user_id for res in reservations))
+        
+        # Simple approximation for new users per day
+        if user_activity:
+            daily_new_users = unique_users_in_period / len(user_activity) if len(user_activity) > 0 else 0
+            for date_key in user_activity:
+                user_activity[date_key]['new_users'] = int(daily_new_users)
         
         user_activity_data = [
             {'date': date, 'new_users': data['new_users'], 'active_users': data['active_users']}
@@ -1726,14 +1759,14 @@ def export_occupancy_report():
         
         # Write data
         for lot in parking_lots:
-            active_reservations = Reservation.query.filter(
-                Reservation.parking_spot.has(parking_lot_id=lot.id),
+            active_reservations = Reservation.query.join(ParkingSpot).filter(
+                ParkingSpot.lot_id == lot.id,
                 Reservation.status == 'active'
             ).count()
             
             total_revenue = sum(
-                res.final_cost or 0 for res in Reservation.query.filter(
-                    Reservation.parking_spot.has(parking_lot_id=lot.id),
+                res.final_cost or 0 for res in Reservation.query.join(ParkingSpot).filter(
+                    ParkingSpot.lot_id == lot.id,
                     Reservation.created_at >= start_date,
                     Reservation.status.in_(['completed', 'active'])
                 ).all()
@@ -1764,7 +1797,7 @@ def export_occupancy_report():
 
 @api.route('/admin/reports/users', methods=['GET'])
 @roles_required('admin')
-def export_user_report():
+def export_admin_user_report():
     """Export user activity report as CSV"""
     try:
         days = request.args.get('days', 30, type=int)

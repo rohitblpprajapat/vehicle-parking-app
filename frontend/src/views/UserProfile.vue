@@ -1,201 +1,217 @@
 <template>
     <div class="user-profile">
-        <!-- Header Section -->
-        <div class="profile-header">
-            <div class="user-info">
-                <div class="avatar">
-                    <span class="avatar-text">{{ userInitials }}</span>
-                </div>
-                <div class="user-details">
-                    <h1>{{ user?.name || 'User' }}</h1>
-                    <p class="email">{{ user?.email }}</p>
-                    <div class="user-stats">
-                        <div class="stat">
-                            <span class="stat-value">{{ totalReservations }}</span>
-                            <span class="stat-label">Total Bookings</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-value">${{ totalSpent.toFixed(2) }}</span>
-                            <span class="stat-label">Total Spent</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-value">{{ totalHours.toFixed(1) }}h</span>
-                            <span class="stat-label">Hours Parked</span>
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h3>User Profile</h3>
+            </div>
+            <div class="nav-links">
+                <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
+                <router-link to="/parking-lots" class="nav-link">Find Parking</router-link>
+                <router-link to="/reservations" class="nav-link">My Reservations</router-link>
+                <router-link to="/profile" class="nav-link">Profile</router-link>
+                <button @click="logout" class="btn btn-logout">Logout</button>
+            </div>
+        </nav>
+
+        <main class="profile-content">
+            <!-- Header Section -->
+            <div class="profile-header">
+                <div class="user-info">
+                    <div class="avatar">
+                        <span class="avatar-text">{{ userInitials }}</span>
+                    </div>
+                    <div class="user-details">
+                        <h1>{{ user?.name || 'User' }}</h1>
+                        <p class="email">{{ user?.email }}</p>
+                        <div class="user-stats">
+                            <div class="stat">
+                                <span class="stat-value">{{ totalReservations }}</span>
+                                <span class="stat-label">Total Bookings</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value">${{ totalSpent.toFixed(2) }}</span>
+                                <span class="stat-label">Total Spent</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-value">{{ totalHours.toFixed(1) }}h</span>
+                                <span class="stat-label">Hours Parked</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="profile-actions">
-                <button @click="showPasswordChange = true" class="btn btn-outline">
-                    Change Password
-                </button>
-            </div>
-        </div>
-
-        <!-- Analytics Dashboard -->
-        <div class="analytics-section">
-            <h2>Your Parking Analytics</h2>
-            <p class="analytics-subtitle">Track your parking patterns and spending habits</p>
-
-            <!-- Time Period Filter -->
-            <div class="filter-controls">
-                <select v-model="selectedPeriod" @change="loadAnalytics">
-                    <option value="7">Last 7 Days</option>
-                    <option value="30">Last 30 Days</option>
-                    <option value="90">Last 3 Months</option>
-                    <option value="365">Last Year</option>
-                </select>
-                <button @click="exportPersonalReport" class="btn btn-outline btn-small">
-                    📊 Export Report
-                </button>
-            </div>
-
-            <!-- Charts Grid -->
-            <div class="charts-grid">
-                <!-- Spending Over Time Chart -->
-                <div class="chart-container">
-                    <h3>Spending Over Time</h3>
-                    <canvas ref="spendingChart" class="chart"></canvas>
-                </div>
-
-                <!-- Parking Duration Distribution -->
-                <div class="chart-container">
-                    <h3>Parking Duration Distribution</h3>
-                    <canvas ref="durationChart" class="chart"></canvas>
-                </div>
-
-                <!-- Parking Lot Usage -->
-                <div class="chart-container">
-                    <h3>Parking Lot Usage</h3>
-                    <canvas ref="lotUsageChart" class="chart"></canvas>
-                </div>
-
-                <!-- Favorite Locations Chart -->
-                <div class="chart-container">
-                    <h3>Your Favorite Parking Locations</h3>
-                    <canvas ref="favoriteLocationsChart" class="chart"></canvas>
-                </div>
-
-                <!-- Cost Comparison Chart -->
-                <div class="chart-container">
-                    <h3>Cost vs Time Analysis</h3>
-                    <canvas ref="costComparisonChart" class="chart"></canvas>
+                <div class="profile-actions">
+                    <button @click="showPasswordChange = true" class="btn btn-outline">
+                        Change Password
+                    </button>
                 </div>
             </div>
 
-            <!-- Personal Insights -->
-            <div class="insights-section">
-                <h3>Personal Insights</h3>
-                <div class="insights-grid">
-                    <div class="insight-card">
-                        <div class="insight-icon">🕐</div>
-                        <div class="insight-content">
-                            <h4>Peak Parking Time</h4>
-                            <p>{{ peakParkingTime }}</p>
+            <!-- Analytics Dashboard -->
+            <div class="analytics-section">
+                <h2>Your Parking Analytics</h2>
+                <p class="analytics-subtitle">Track your parking patterns and spending habits</p>
+
+                <!-- Time Period Filter -->
+                <div class="filter-controls">
+                    <select v-model="selectedPeriod" @change="loadAnalytics">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="90">Last 3 Months</option>
+                        <option value="365">Last Year</option>
+                    </select>
+                    <button @click="exportPersonalReport" class="btn btn-outline btn-small">
+                        📊 Export Report
+                    </button>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <!-- Spending Over Time Chart -->
+                    <div class="chart-container">
+                        <h3>Spending Over Time</h3>
+                        <canvas ref="spendingChart" class="chart"></canvas>
+                    </div>
+
+                    <!-- Parking Duration Distribution -->
+                    <div class="chart-container">
+                        <h3>Parking Duration Distribution</h3>
+                        <canvas ref="durationChart" class="chart"></canvas>
+                    </div>
+
+                    <!-- Parking Lot Usage -->
+                    <div class="chart-container">
+                        <h3>Parking Lot Usage</h3>
+                        <canvas ref="lotUsageChart" class="chart"></canvas>
+                    </div>
+
+                    <!-- Favorite Locations Chart -->
+                    <div class="chart-container">
+                        <h3>Your Favorite Parking Locations</h3>
+                        <canvas ref="favoriteLocationsChart" class="chart"></canvas>
+                    </div>
+
+                    <!-- Cost Comparison Chart -->
+                    <div class="chart-container">
+                        <h3>Cost vs Time Analysis</h3>
+                        <canvas ref="costComparisonChart" class="chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Personal Insights -->
+                <div class="insights-section">
+                    <h3>Personal Insights</h3>
+                    <div class="insights-grid">
+                        <div class="insight-card">
+                            <div class="insight-icon">🕐</div>
+                            <div class="insight-content">
+                                <h4>Peak Parking Time</h4>
+                                <p>{{ peakParkingTime }}</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="insight-card">
-                        <div class="insight-icon">🏆</div>
-                        <div class="insight-content">
-                            <h4>Favorite Day</h4>
-                            <p>{{ favoriteDay }}</p>
+                        <div class="insight-card">
+                            <div class="insight-icon">🏆</div>
+                            <div class="insight-content">
+                                <h4>Favorite Day</h4>
+                                <p>{{ favoriteDay }}</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="insight-card">
-                        <div class="insight-icon">💡</div>
-                        <div class="insight-content">
-                            <h4>Money-Saving Tip</h4>
-                            <p>{{ moneySavingTip }}</p>
+                        <div class="insight-card">
+                            <div class="insight-icon">💡</div>
+                            <div class="insight-content">
+                                <h4>Money-Saving Tip</h4>
+                                <p>{{ moneySavingTip }}</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="insight-card">
-                        <div class="insight-icon">📈</div>
-                        <div class="insight-content">
-                            <h4>Usage Trend</h4>
-                            <p>{{ usageTrend }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Spending Summary -->
-        <div class="spending-summary">
-            <h2>Spending Summary</h2>
-            <div class="summary-cards">
-                <div class="summary-card">
-                    <h4>Average per Booking</h4>
-                    <p class="amount">${{ averagePerBooking.toFixed(2) }}</p>
-                </div>
-                <div class="summary-card">
-                    <h4>Average per Hour</h4>
-                    <p class="amount">${{ averagePerHour.toFixed(2) }}</p>
-                </div>
-                <div class="summary-card">
-                    <h4>Savings vs Estimate</h4>
-                    <p class="amount" :class="savingsVsEstimate >= 0 ? 'positive' : 'negative'">
-                        ${{ Math.abs(savingsVsEstimate).toFixed(2) }}
-                        <span class="savings-label">
-                            {{ savingsVsEstimate >= 0 ? 'Saved' : 'Extra' }}
-                        </span>
-                    </p>
-                </div>
-                <div class="summary-card">
-                    <h4>Most Used Lot</h4>
-                    <p class="lot-name">{{ mostUsedLot || 'N/A' }}</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="recent-activity">
-            <h2>Recent Parking History</h2>
-            <div class="activity-list">
-                <div v-for="activity in recentActivity" :key="activity.id" class="activity-item">
-                    <div class="activity-icon">
-                        <i class="icon-parking"></i>
-                    </div>
-                    <div class="activity-details">
-                        <h4>{{ activity.parking_lot }}</h4>
-                        <p>Spot {{ activity.spot_number }} • {{ formatDate(activity.date) }}</p>
-                        <div class="activity-meta">
-                            <span class="duration">{{ activity.duration_hours?.toFixed(1) }}h</span>
-                            <span class="cost">${{ activity.cost.toFixed(2) }}</span>
-                            <span class="status" :class="activity.status">{{ activity.status }}</span>
+                        <div class="insight-card">
+                            <div class="insight-icon">📈</div>
+                            <div class="insight-content">
+                                <h4>Usage Trend</h4>
+                                <p>{{ usageTrend }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Change Password Modal -->
-        <div v-if="showPasswordChange" class="modal-overlay" @click="showPasswordChange = false">
-            <div class="modal" @click.stop>
-                <h3>Change Password</h3>
-                <form @submit.prevent="changePassword">
-                    <div class="form-group">
-                        <label>Current Password</label>
-                        <input type="password" v-model="passwordForm.current" required>
+            <!-- Spending Summary -->
+            <div class="spending-summary">
+                <h2>Spending Summary</h2>
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h4>Average per Booking</h4>
+                        <p class="amount">${{ averagePerBooking.toFixed(2) }}</p>
                     </div>
-                    <div class="form-group">
-                        <label>New Password</label>
-                        <input type="password" v-model="passwordForm.new" required>
+                    <div class="summary-card">
+                        <h4>Average per Hour</h4>
+                        <p class="amount">${{ averagePerHour.toFixed(2) }}</p>
                     </div>
-                    <div class="form-group">
-                        <label>Confirm New Password</label>
-                        <input type="password" v-model="passwordForm.confirm" required>
+                    <div class="summary-card">
+                        <h4>Savings vs Estimate</h4>
+                        <p class="amount" :class="savingsVsEstimate >= 0 ? 'positive' : 'negative'">
+                            ${{ Math.abs(savingsVsEstimate).toFixed(2) }}
+                            <span class="savings-label">
+                                {{ savingsVsEstimate >= 0 ? 'Saved' : 'Extra' }}
+                            </span>
+                        </p>
                     </div>
-                    <div class="form-actions">
-                        <button type="button" @click="showPasswordChange = false" class="btn btn-outline">
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            Change Password
-                        </button>
+                    <div class="summary-card">
+                        <h4>Most Used Lot</h4>
+                        <p class="lot-name">{{ mostUsedLot || 'N/A' }}</p>
                     </div>
-                </form>
+                </div>
             </div>
-        </div>
+
+            <!-- Recent Activity -->
+            <div class="recent-activity">
+                <h2>Recent Parking History</h2>
+                <div class="activity-list">
+                    <div v-for="activity in recentActivity" :key="activity.id" class="activity-item">
+                        <div class="activity-icon">
+                            <i class="icon-parking"></i>
+                        </div>
+                        <div class="activity-details">
+                            <h4>{{ activity.parking_lot }}</h4>
+                            <p>Spot {{ activity.spot_number }} • {{ formatDate(activity.date) }}</p>
+                            <div class="activity-meta">
+                                <span class="duration">{{ activity.duration_hours?.toFixed(1) }}h</span>
+                                <span class="cost">${{ activity.cost.toFixed(2) }}</span>
+                                <span class="status" :class="activity.status">{{ activity.status }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password Modal -->
+            <div v-if="showPasswordChange" class="modal-overlay" @click="showPasswordChange = false">
+                <div class="modal" @click.stop>
+                    <h3>Change Password</h3>
+                    <form @submit.prevent="changePassword">
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" v-model="passwordForm.current" required>
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" v-model="passwordForm.new" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" v-model="passwordForm.confirm" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" @click="showPasswordChange = false" class="btn btn-outline">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                Change Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
     </div>
 </template>
 
@@ -228,7 +244,8 @@ export default {
                 favoriteLocations: null,
                 costComparison: null
             },
-            loading: true
+            loading: true,
+            chartCreationInProgress: false
         }
     },
     computed: {
@@ -292,21 +309,25 @@ export default {
     },
     beforeUnmount() {
         // Destroy charts to prevent memory leaks
-        Object.values(this.charts).forEach(chart => {
-            if (chart) chart.destroy()
-        })
+        this.destroyAllCharts()
     },
     methods: {
         async loadUserData() {
             try {
-                const token = localStorage.getItem('token')
-                const response = await fetch('/api/v1/auth/me', {
+                const token = localStorage.getItem('authToken')
+                const response = await fetch('http://127.0.0.1:5000/api/v1/auth/me', {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
-                const data = await response.json()
-                this.user = data.user
+                if (response.ok) {
+                    const data = await response.json()
+                    this.user = data.user
+                } else {
+                    console.error('Failed to load user data')
+                    this.$router.push('/login')
+                }
             } catch (error) {
                 console.error('Error loading user data:', error)
                 this.$router.push('/login')
@@ -314,25 +335,31 @@ export default {
         },
         async loadAnalytics() {
             try {
-                const token = localStorage.getItem('token')
+                const token = localStorage.getItem('authToken')
 
                 // Load spending summary
-                const summaryResponse = await fetch(`/api/v1/user/spending-summary?days=${this.selectedPeriod}`, {
+                const summaryResponse = await fetch(`http://127.0.0.1:5000/api/v1/user/spending-summary?days=${this.selectedPeriod}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
-                this.spendingSummary = await summaryResponse.json()
-                this.recentActivity = this.spendingSummary.recent_activity || []
+                if (summaryResponse.ok) {
+                    this.spendingSummary = await summaryResponse.json()
+                    this.recentActivity = this.spendingSummary.recent_activity || []
+                }
 
                 // Load detailed history for charts
-                const historyResponse = await fetch(`/api/v1/reservations/history?limit=100`, {
+                const historyResponse = await fetch(`http://127.0.0.1:5000/api/v1/reservations?limit=100`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
-                const historyData = await historyResponse.json()
-                this.parkingHistory = historyData.history || []
+                if (historyResponse.ok) {
+                    const historyData = await historyResponse.json()
+                    this.parkingHistory = historyData.reservations || []
+                }
 
                 this.$nextTick(() => {
                     this.createCharts()
@@ -341,27 +368,62 @@ export default {
                 console.error('Error loading analytics:', error)
             }
         },
+        destroyAllCharts() {
+            Object.keys(this.charts).forEach(key => {
+                if (this.charts[key]) {
+                    try {
+                        this.charts[key].destroy()
+                    } catch (error) {
+                        console.warn(`Error destroying chart ${key}:`, error)
+                    }
+                    this.charts[key] = null
+                }
+            })
+        },
         createCharts() {
-            this.createSpendingChart()
-            this.createDurationChart()
-            this.createLotUsageChart()
-            this.createTrendsChart()
-            this.createFavoriteLocationsChart()
-            this.createCostComparisonChart()
+            // Add a small delay to ensure DOM is ready and avoid multiple rapid calls
+            if (this.chartCreationInProgress) return
+            this.chartCreationInProgress = true
+
+            try {
+                // First destroy any existing charts
+                this.destroyAllCharts()
+
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    this.createSpendingChart()
+                    this.createDurationChart()
+                    this.createLotUsageChart()
+                    this.createTrendsChart()
+                    this.createFavoriteLocationsChart()
+                    this.createCostComparisonChart()
+                    this.chartCreationInProgress = false
+                }, 100)
+            } catch (error) {
+                console.error('Error creating charts:', error)
+                this.chartCreationInProgress = false
+            }
         },
         createSpendingChart() {
             const ctx = this.$refs.spendingChart?.getContext('2d')
-            if (!ctx) return
+            if (!ctx) {
+                console.warn('Spending chart canvas not found')
+                return
+            }
 
             if (this.charts.spending) {
                 this.charts.spending.destroy()
+                this.charts.spending = null
             }
 
-            // Group spending by date
+            // Group spending by date - handle missing properties safely
             const spendingByDate = {}
             this.parkingHistory.forEach(item => {
-                const date = new Date(item.timestamps.created_at).toDateString()
-                spendingByDate[date] = (spendingByDate[date] || 0) + item.cost_breakdown.final_cost
+                if (item && (item.created_at || item.start_time)) {
+                    const date = new Date(item.created_at || item.start_time).toDateString()
+                    const cost = item.total_cost || item.cost || 0
+                    spendingByDate[date] = (spendingByDate[date] || 0) + cost
+                }
             })
 
             const labels = Object.keys(spendingByDate).sort()
@@ -374,8 +436,8 @@ export default {
                     datasets: [{
                         label: 'Daily Spending',
                         data,
-                        borderColor: '#3B82F6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
                         tension: 0.4,
                         fill: true
                     }]
@@ -417,12 +479,14 @@ export default {
             }
 
             this.parkingHistory.forEach(item => {
-                const hours = item.duration.actual_hours || item.duration.reserved_hours || 0
-                if (hours <= 1) ranges['0-1h']++
-                else if (hours <= 3) ranges['1-3h']++
-                else if (hours <= 6) ranges['3-6h']++
-                else if (hours <= 12) ranges['6-12h']++
-                else ranges['12h+']++
+                if (item) {
+                    const hours = item.duration_hours || item.duration || 0
+                    if (hours <= 1) ranges['0-1h']++
+                    else if (hours <= 3) ranges['1-3h']++
+                    else if (hours <= 6) ranges['3-6h']++
+                    else if (hours <= 12) ranges['6-12h']++
+                    else ranges['12h+']++
+                }
             })
 
             this.charts.duration = new Chart(ctx, {
@@ -504,7 +568,8 @@ export default {
             // Group by month
             const monthlyData = {}
             this.parkingHistory.forEach(item => {
-                const month = new Date(item.timestamps.created_at).toLocaleDateString('en-US', {
+                const date = item.created_at || item.start_time || new Date()
+                const month = new Date(date).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short'
                 })
@@ -512,7 +577,7 @@ export default {
                     monthlyData[month] = { bookings: 0, spending: 0 }
                 }
                 monthlyData[month].bookings++
-                monthlyData[month].spending += item.cost_breakdown.final_cost
+                monthlyData[month].spending += (item.total_cost || item.cost || 0)
             })
 
             const labels = Object.keys(monthlyData).sort()
@@ -653,7 +718,7 @@ export default {
                         },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                     return `${context.parsed.x.toFixed(1)}h: $${context.parsed.y.toFixed(2)}`
                                 }
                             }
@@ -681,10 +746,11 @@ export default {
         },
         async exportPersonalReport() {
             try {
-                const token = localStorage.getItem('token')
-                const response = await fetch(`/api/v1/user/export-report?days=${this.selectedPeriod}`, {
+                const token = localStorage.getItem('authToken')
+                const response = await fetch(`http://127.0.0.1:5000/api/v1/user/export-report?days=${this.selectedPeriod}`, {
                     headers: {
-                        'Authorization': `Bearer ${token}`
+                        'Content-Type': 'application/json',
+                        'Authentication-Token': token
                     }
                 })
                 const blob = await response.blob()
@@ -706,12 +772,12 @@ export default {
             }
 
             try {
-                const token = localStorage.getItem('token')
-                const response = await fetch('/api/v1/auth/change-password', {
+                const token = localStorage.getItem('authToken')
+                const response = await fetch('http://127.0.0.1:5000/api/v1/auth/change-password', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authentication-Token': token
                     },
                     body: JSON.stringify({
                         current_password: this.passwordForm.current,
@@ -732,6 +798,10 @@ export default {
                 alert('Failed to change password')
             }
         },
+        logout() {
+            localStorage.removeItem('authToken')
+            this.$router.push('/login')
+        },
         formatDate(dateString) {
             return new Date(dateString).toLocaleDateString('en-US', {
                 month: 'short',
@@ -746,48 +816,102 @@ export default {
 
 <style scoped>
 .user-profile {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
+    min-height: 100vh;
+    background-color: #f8f9fa;
 }
 
+.navbar {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-brand h3 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.nav-link:hover,
+.nav-link.router-link-active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-logout {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-logout:hover {
+    background: #c82333;
+}
+
+.profile-content {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Profile Header */
 .profile-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     background: white;
-    border-radius: 12px;
     padding: 2rem;
+    border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 2rem;
 }
 
 .user-info {
     display: flex;
+    align-items: center;
     gap: 1.5rem;
 }
 
 .avatar {
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, #3B82F6, #1D4ED8);
     border-radius: 50%;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 2rem;
-    font-weight: bold;
+    font-size: 1.5rem;
+    font-weight: 600;
 }
 
 .user-details h1 {
     margin: 0 0 0.5rem 0;
-    color: #1F2937;
+    color: #333;
     font-size: 2rem;
 }
 
 .email {
-    color: #6B7280;
+    color: #6c757d;
     margin: 0 0 1rem 0;
 }
 
@@ -803,208 +927,203 @@ export default {
 .stat-value {
     display: block;
     font-size: 1.5rem;
-    font-weight: bold;
-    color: #1F2937;
+    font-weight: 700;
+    color: #28a745;
 }
 
 .stat-label {
+    display: block;
     font-size: 0.875rem;
-    color: #6B7280;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.profile-actions {
-    display: flex;
-    gap: 1rem;
-}
-
+/* Analytics Section */
 .analytics-section {
     background: white;
-    border-radius: 12px;
     padding: 2rem;
+    border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 2rem;
 }
 
 .analytics-section h2 {
-    margin-top: 0;
-    color: #1F2937;
+    color: #333;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
 }
 
 .analytics-subtitle {
-    color: #6B7280;
-    margin-bottom: 1.5rem;
-    font-size: 1rem;
+    color: #6c757d;
+    margin: 0 0 2rem 0;
 }
 
 .filter-controls {
-    margin-bottom: 2rem;
     display: flex;
-    gap: 1rem;
+    justify-content: space-between;
     align-items: center;
+    margin-bottom: 2rem;
 }
 
 .filter-controls select {
     padding: 0.5rem 1rem;
-    border: 1px solid #D1D5DB;
+    border: 1px solid #ddd;
     border-radius: 6px;
     background: white;
-}
-
-.btn-small {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
 }
 
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 2rem;
+    margin-bottom: 3rem;
 }
 
 .chart-container {
-    background: #F9FAFB;
+    background: #f8f9fa;
     padding: 1.5rem;
     border-radius: 8px;
+    border: 1px solid #e9ecef;
+    height: 400px;
+    position: relative;
+    overflow: hidden;
 }
 
 .chart-container h3 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    color: #374151;
+    margin: 0 0 1rem 0;
+    color: #333;
     font-size: 1.125rem;
 }
 
-.chart {
-    height: 300px !important;
+.chart-container canvas {
+    max-height: 300px !important;
+    width: 100% !important;
 }
 
+.chart {
+    width: 100%;
+    height: 300px;
+}
+
+/* Insights Section */
 .insights-section {
-    margin-top: 2rem;
-    padding-top: 2rem;
-    border-top: 1px solid #E5E7EB;
+    margin-bottom: 2rem;
 }
 
 .insights-section h3 {
-    margin-bottom: 1.5rem;
-    color: #1F2937;
-    font-size: 1.25rem;
+    color: #333;
+    margin: 0 0 1rem 0;
 }
 
 .insights-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .insight-card {
-    background: #F9FAFB;
+    background: #f8f9fa;
     padding: 1.5rem;
     border-radius: 8px;
+    border-left: 4px solid #28a745;
     display: flex;
     align-items: center;
     gap: 1rem;
-    border-left: 4px solid #3B82F6;
 }
 
 .insight-icon {
     font-size: 2rem;
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .insight-content h4 {
-    margin: 0 0 0.25rem 0;
-    color: #374151;
-    font-size: 0.875rem;
-    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .insight-content p {
     margin: 0;
-    color: #1F2937;
-    font-weight: 500;
+    color: #28a745;
+    font-weight: 600;
 }
 
+/* Spending Summary */
 .spending-summary {
     background: white;
-    border-radius: 12px;
     padding: 2rem;
+    border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 2rem;
 }
 
 .spending-summary h2 {
-    margin-top: 0;
-    color: #1F2937;
+    color: #333;
+    margin: 0 0 1.5rem 0;
 }
 
 .summary-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .summary-card {
-    background: #F9FAFB;
+    background: #f8f9fa;
     padding: 1.5rem;
     border-radius: 8px;
     text-align: center;
+    border-left: 4px solid #007bff;
 }
 
 .summary-card h4 {
     margin: 0 0 0.5rem 0;
-    color: #6B7280;
+    color: #6c757d;
     font-size: 0.875rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .amount {
-    font-size: 2rem;
-    font-weight: bold;
+    font-size: 1.5rem;
+    font-weight: 700;
     margin: 0;
-    color: #1F2937;
 }
 
 .amount.positive {
-    color: #10B981;
+    color: #28a745;
 }
 
 .amount.negative {
-    color: #EF4444;
+    color: #dc3545;
 }
 
 .savings-label {
-    display: block;
     font-size: 0.75rem;
-    font-weight: normal;
     text-transform: uppercase;
-    margin-top: 0.25rem;
+    margin-left: 0.25rem;
 }
 
 .lot-name {
     font-size: 1.25rem;
-    font-weight: bold;
+    font-weight: 600;
+    color: #333;
     margin: 0;
-    color: #3B82F6;
 }
 
+/* Recent Activity */
 .recent-activity {
     background: white;
-    border-radius: 12px;
     padding: 2rem;
+    border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
 }
 
 .recent-activity h2 {
-    margin-top: 0;
-    color: #1F2937;
+    color: #333;
+    margin: 0 0 1.5rem 0;
 }
 
 .activity-list {
@@ -1015,32 +1134,38 @@ export default {
 
 .activity-item {
     display: flex;
+    align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: #F9FAFB;
+    background: #f8f9fa;
     border-radius: 8px;
+    border: 1px solid #e9ecef;
 }
 
 .activity-icon {
     width: 40px;
     height: 40px;
-    background: #3B82F6;
+    background: #28a745;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.activity-details {
+    flex: 1;
 }
 
 .activity-details h4 {
     margin: 0 0 0.25rem 0;
-    color: #1F2937;
+    color: #333;
 }
 
 .activity-details p {
     margin: 0 0 0.5rem 0;
-    color: #6B7280;
+    color: #6c757d;
     font-size: 0.875rem;
 }
 
@@ -1050,71 +1175,34 @@ export default {
     font-size: 0.875rem;
 }
 
-.duration {
-    color: #10B981;
-    font-weight: 500;
-}
-
+.duration,
 .cost {
-    color: #3B82F6;
+    background: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    color: #333;
     font-weight: 500;
 }
 
 .status {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
     font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
-    font-weight: 500;
 }
 
 .status.completed {
-    background: #D1FAE5;
-    color: #065F46;
+    background: #d4edda;
+    color: #155724;
 }
 
 .status.active {
-    background: #DBEAFE;
-    color: #1E40AF;
+    background: #fff3cd;
+    color: #856404;
 }
 
-.status.cancelled {
-    background: #FEE2E2;
-    color: #991B1B;
-}
-
-.btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-weight: 500;
-    text-decoration: none;
-    display: inline-block;
-    text-align: center;
-    transition: all 0.2s;
-}
-
-.btn-primary {
-    background: #3B82F6;
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #2563EB;
-}
-
-.btn-outline {
-    background: transparent;
-    color: #3B82F6;
-    border: 1px solid #3B82F6;
-}
-
-.btn-outline:hover {
-    background: #3B82F6;
-    color: white;
-}
-
+/* Modal */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -1132,15 +1220,14 @@ export default {
     background: white;
     padding: 2rem;
     border-radius: 12px;
-    max-width: 400px;
     width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .modal h3 {
-    margin-top: 0;
-    color: #1F2937;
+    margin: 0 0 1.5rem 0;
+    color: #333;
 }
 
 .form-group {
@@ -1150,22 +1237,16 @@ export default {
 .form-group label {
     display: block;
     margin-bottom: 0.5rem;
-    color: #374151;
+    color: #333;
     font-weight: 500;
 }
 
 .form-group input {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #D1D5DB;
+    border: 1px solid #ddd;
     border-radius: 6px;
-    box-sizing: border-box;
-}
-
-.form-group input:focus {
-    outline: none;
-    border-color: #3B82F6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    font-size: 1rem;
 }
 
 .form-actions {
@@ -1175,13 +1256,54 @@ export default {
     margin-top: 1.5rem;
 }
 
+/* Buttons */
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.btn-small {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+.btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.profile-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
-    .user-profile {
+    .profile-content {
         padding: 1rem;
     }
 
     .profile-header {
         flex-direction: column;
+        text-align: center;
         gap: 1.5rem;
     }
 
@@ -1198,13 +1320,23 @@ export default {
         grid-template-columns: 1fr;
     }
 
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+
     .summary-cards {
         grid-template-columns: repeat(2, 1fr);
     }
+}
 
-    .activity-item {
+@media (max-width: 480px) {
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .user-stats {
         flex-direction: column;
-        text-align: center;
+        gap: 1rem;
     }
 }
 </style>

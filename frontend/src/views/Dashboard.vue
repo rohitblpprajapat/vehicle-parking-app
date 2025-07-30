@@ -8,6 +8,7 @@
                 <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
                 <router-link to="/parking-lots" class="nav-link">Find Parking</router-link>
                 <router-link to="/reservations" class="nav-link">My Reservations</router-link>
+                <router-link to="/profile" class="nav-link">Profile</router-link>
                 <span class="user-info">Welcome, {{ userInfo.name }}</span>
                 <button @click="logout" class="btn btn-logout">Logout</button>
             </div>

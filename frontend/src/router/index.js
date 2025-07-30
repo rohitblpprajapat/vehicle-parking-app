@@ -38,6 +38,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/parking-lots/:id',
+    name: 'ParkingLotDetailsUser',
+    component: ParkingLotDetails,
+    meta: { requiresAuth: true, userOnly: true }
+  },
+  {
     path: '/reservations',
     name: 'Reservations',
     component: Reservations,

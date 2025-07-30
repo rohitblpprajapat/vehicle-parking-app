@@ -9,6 +9,7 @@
                 <router-link to="/admin/parking-lots" class="nav-link">Manage Lots</router-link>
                 <router-link to="/admin/users" class="nav-link">Manage Users</router-link>
                 <router-link to="/admin/reservations" class="nav-link">All Reservations</router-link>
+                <router-link to="/admin/summary" class="nav-link">Analytics</router-link>
                 <span class="user-info">Welcome, {{ userInfo.name }}</span>
                 <button @click="logout" class="btn btn-logout">Logout</button>
             </div>

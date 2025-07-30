@@ -5,8 +5,21 @@
                 <h3>Parking Lot Details</h3>
             </div>
             <div class="nav-links">
-                <router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link>
-                <router-link to="/admin/parking-lots" class="nav-link">Manage Lots</router-link>
+                <!-- Admin Navigation -->
+                <template v-if="isAdmin">
+                    <router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link>
+                    <router-link to="/admin/parking-lots" class="nav-link">Manage Lots</router-link>
+                    <router-link to="/admin/users" class="nav-link">Manage Users</router-link>
+                    <router-link to="/admin/reservations" class="nav-link">All Reservations</router-link>
+                    <router-link to="/admin/summary" class="nav-link">Analytics</router-link>
+                </template>
+                <!-- Regular User Navigation -->
+                <template v-else>
+                    <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
+                    <router-link to="/parking-lots" class="nav-link">Parking Lots</router-link>
+                    <router-link to="/reservations" class="nav-link">My Reservations</router-link>
+                    <router-link to="/profile" class="nav-link">Profile</router-link>
+                </template>
                 <button @click="logout" class="btn btn-logout">Logout</button>
             </div>
         </nav>
@@ -32,7 +45,8 @@
                             <p class="location">{{ parkingLot.location }}</p>
                         </div>
                         <div class="header-actions">
-                            <router-link to="/admin/parking-lots" class="btn btn-secondary">
+                            <router-link :to="isAdmin ? '/admin/parking-lots' : '/parking-lots'"
+                                class="btn btn-secondary">
                                 ← Back to Lots
                             </router-link>
                         </div>
@@ -114,14 +128,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { isAdmin as checkIsAdmin } from '../utils/auth.js'
 
 const router = useRouter()
 const route = useRoute()
 const loading = ref(true)
 const error = ref('')
 const parkingLot = ref(null)
+
+const isAdmin = computed(() => checkIsAdmin())
 
 const fetchParkingLotDetails = async () => {
     try {
@@ -135,7 +152,12 @@ const fetchParkingLotDetails = async () => {
         }
 
         const lotId = route.params.id
-        const response = await fetch(`http://127.0.0.1:5000/api/v1/admin/parking-lots/${lotId}/spots`, {
+        // Use different API endpoints based on user role
+        const apiEndpoint = isAdmin.value
+            ? `/api/v1/admin/parking-lots/${lotId}/spots`
+            : `/api/v1/parking-lots/${lotId}`
+
+        const response = await fetch(`http://127.0.0.1:5000${apiEndpoint}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -186,7 +208,7 @@ onMounted(() => {
 }
 
 .navbar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
     padding: 1rem 2rem;
     display: flex;

@@ -8,6 +8,7 @@
                 <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
                 <router-link to="/parking-lots" class="nav-link">Find Parking</router-link>
                 <router-link to="/reservations" class="nav-link">My Reservations</router-link>
+                <router-link to="/profile" class="nav-link">Profile</router-link>
                 <button @click="logout" class="btn btn-logout">Logout</button>
             </div>
         </nav>
@@ -236,7 +237,7 @@
                                     <div class="cost-row total">
                                         <span>Additional Cost:</span>
                                         <span>${{ (extendDuration * (selectedReservation?.hourly_rate || 0)).toFixed(2)
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                 </div>
                             </div>

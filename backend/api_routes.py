@@ -505,6 +505,44 @@ def get_user_spending_summary():
         ]
         lot_breakdown.sort(key=lambda x: x['total_spent'], reverse=True)
         
+        # Hourly usage analysis
+        hourly_usage = {}
+        for hour in range(24):
+            hourly_usage[hour] = 0
+        
+        for res in reservations:
+            if res.start_time:
+                hour = res.start_time.hour
+                hourly_usage[hour] += 1
+        
+        hourly_usage_data = [
+            {'hour': hour, 'count': count}
+            for hour, count in hourly_usage.items()
+        ]
+        
+        # Daily usage analysis (day of week)
+        daily_usage = {}
+        for day in range(7):  # 0 = Monday, 6 = Sunday
+            daily_usage[day] = 0
+        
+        for res in reservations:
+            if res.start_time:
+                day_of_week = res.start_time.weekday()
+                daily_usage[day_of_week] += 1
+        
+        daily_usage_data = [
+            {'day_of_week': day, 'count': count}
+            for day, count in daily_usage.items()
+        ]
+        
+        # Get previous month data for trend comparison
+        prev_month_start = start_date - timedelta(days=30)
+        prev_month_end = start_date
+        prev_month_reservations = Reservation.query.filter_by(user_id=current_user.id).filter(
+            Reservation.created_at >= prev_month_start,
+            Reservation.created_at < prev_month_end
+        ).count()
+        
         return jsonify({
             'period': {
                 'days': days,
@@ -523,6 +561,9 @@ def get_user_spending_summary():
                 'savings_vs_estimate': round(savings, 2)  # Positive means saved money, negative means paid more
             },
             'spending_by_parking_lot': lot_breakdown,
+            'hourly_usage': hourly_usage_data,
+            'daily_usage': daily_usage_data,
+            'previous_month_reservations': prev_month_reservations,
             'recent_activity': [
                 {
                     'id': res.id,
@@ -1425,6 +1466,485 @@ def get_admin_parking_history():
     except Exception as e:
         current_app.logger.error(f"Get admin parking history error: {str(e)}")
         return jsonify({'error': 'Failed to fetch parking history'}), 500
+
+# ==================== ADMIN ANALYTICS ROUTES ====================
+
+@api.route('/admin/analytics', methods=['GET'])
+@roles_required('admin')
+def get_admin_analytics():
+    """Get comprehensive analytics for admin dashboard"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        
+        # Get date range
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # Total revenue and bookings
+        reservations = Reservation.query.filter(
+            Reservation.created_at >= start_date,
+            Reservation.status.in_(['completed', 'active'])
+        ).all()
+        
+        total_revenue = sum(res.final_cost or 0 for res in reservations)
+        total_bookings = len(reservations)
+        
+        # Calculate average occupancy
+        parking_lots = Parking_lot.query.all()
+        total_spots = sum(lot.capacity for lot in parking_lots)
+        active_reservations = Reservation.query.filter(Reservation.status == 'active').count()
+        average_occupancy = (active_reservations / total_spots * 100) if total_spots > 0 else 0
+        
+        # Active users (users with reservations in the period)
+        active_users = len(set(res.user_id for res in reservations))
+        
+        # Revenue over time (daily)
+        revenue_by_date = {}
+        booking_trends = {}
+        for res in reservations:
+            date_key = res.created_at.strftime('%Y-%m-%d')
+            if date_key not in revenue_by_date:
+                revenue_by_date[date_key] = 0
+                booking_trends[date_key] = 0
+            revenue_by_date[date_key] += res.final_cost or 0
+            booking_trends[date_key] += 1
+        
+        # Convert to sorted lists
+        revenue_over_time = [
+            {'date': date, 'revenue': revenue}
+            for date, revenue in sorted(revenue_by_date.items())
+        ]
+        
+        booking_trends_data = [
+            {'date': date, 'bookings': bookings}
+            for date, bookings in sorted(booking_trends.items())
+        ]
+        
+        # Parking lot performance
+        lot_performance = []
+        for lot in parking_lots:
+            lot_reservations = [res for res in reservations if res.parking_spot.parking_lot_id == lot.id]
+            lot_revenue = sum(res.final_cost or 0 for res in lot_reservations)
+            lot_bookings = len(lot_reservations)
+            lot_occupancy = (len([res for res in lot_reservations if res.status == 'active']) / lot.capacity * 100) if lot.capacity > 0 else 0
+            avg_duration = sum(res.actual_duration_hours or res.reserved_duration_hours or 0 for res in lot_reservations) / len(lot_reservations) if lot_reservations else 0
+            
+            lot_performance.append({
+                'id': lot.id,
+                'name': lot.name,
+                'revenue': lot_revenue,
+                'bookings': lot_bookings,
+                'occupancy': lot_occupancy,
+                'avgDuration': avg_duration,
+                'revenuePerHour': lot_revenue / (avg_duration * len(lot_reservations)) if avg_duration > 0 and lot_reservations else 0
+            })
+        
+        # Sort by revenue
+        lot_performance.sort(key=lambda x: x['revenue'], reverse=True)
+        
+        # Hourly occupancy pattern
+        hourly_occupancy = {}
+        for hour in range(24):
+            hourly_reservations = [res for res in reservations 
+                                 if res.start_time and res.start_time.hour == hour]
+            hourly_occupancy[hour] = len(hourly_reservations)
+        
+        hourly_occupancy_data = [
+            {'hour': hour, 'occupancy': count}
+            for hour, count in hourly_occupancy.items()
+        ]
+        
+        # User activity (new users and active users by date)
+        user_activity = {}
+        all_users = User.query.filter(User.created_at >= start_date).all()
+        for user in all_users:
+            date_key = user.created_at.strftime('%Y-%m-%d')
+            if date_key not in user_activity:
+                user_activity[date_key] = {'new_users': 0, 'active_users': 0}
+            user_activity[date_key]['new_users'] += 1
+        
+        # Add active users per day
+        for res in reservations:
+            date_key = res.created_at.strftime('%Y-%m-%d')
+            if date_key in user_activity:
+                user_activity[date_key]['active_users'] += 1
+        
+        user_activity_data = [
+            {'date': date, 'new_users': data['new_users'], 'active_users': data['active_users']}
+            for date, data in sorted(user_activity.items())
+        ]
+        
+        # Recent high-value transactions
+        recent_transactions = []
+        high_value_reservations = sorted(reservations, key=lambda x: x.final_cost or 0, reverse=True)[:20]
+        for res in high_value_reservations:
+            recent_transactions.append({
+                'id': res.id,
+                'date': res.created_at.isoformat(),
+                'userName': res.user.name,
+                'parkingLot': res.parking_spot.parking_lot.name,
+                'duration': res.actual_duration_hours or res.reserved_duration_hours or 0,
+                'amount': res.final_cost or 0,
+                'status': res.status.title()
+            })
+        
+        return jsonify({
+            'summary': {
+                'total_revenue': total_revenue,
+                'total_bookings': total_bookings,
+                'average_occupancy': average_occupancy,
+                'active_users': active_users
+            },
+            'revenue_over_time': revenue_over_time,
+            'booking_trends': booking_trends_data,
+            'parking_lots': lot_performance,
+            'hourly_occupancy': hourly_occupancy_data,
+            'user_activity': user_activity_data,
+            'recent_transactions': recent_transactions
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Get admin analytics error: {str(e)}")
+        return jsonify({'error': 'Failed to fetch analytics data'}), 500
+
+@api.route('/admin/analytics/previous', methods=['GET'])
+@roles_required('admin')
+def get_admin_analytics_previous():
+    """Get analytics for the previous period for comparison"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        
+        # Get date ranges
+        from datetime import datetime, timedelta
+        end_date = datetime.now() - timedelta(days=days)
+        start_date = end_date - timedelta(days=days)
+        
+        # Get reservations for previous period
+        reservations = Reservation.query.filter(
+            Reservation.created_at >= start_date,
+            Reservation.created_at < end_date,
+            Reservation.status.in_(['completed', 'active'])
+        ).all()
+        
+        total_revenue = sum(res.final_cost or 0 for res in reservations)
+        total_bookings = len(reservations)
+        
+        # Calculate average occupancy for previous period
+        parking_lots = Parking_lot.query.all()
+        total_spots = sum(lot.capacity for lot in parking_lots)
+        prev_active_reservations = len([res for res in reservations if res.status == 'active'])
+        average_occupancy = (prev_active_reservations / total_spots * 100) if total_spots > 0 else 0
+        
+        # Active users in previous period
+        active_users = len(set(res.user_id for res in reservations))
+        
+        return jsonify({
+            'total_revenue': total_revenue,
+            'total_bookings': total_bookings,
+            'average_occupancy': average_occupancy,
+            'active_users': active_users
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Get admin analytics previous error: {str(e)}")
+        return jsonify({'error': 'Failed to fetch previous analytics data'}), 500
+
+@api.route('/admin/reports/revenue', methods=['GET'])
+@roles_required('admin')
+def export_revenue_report():
+    """Export revenue report as CSV"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        
+        from datetime import datetime, timedelta
+        import csv
+        from io import StringIO
+        
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        reservations = Reservation.query.filter(
+            Reservation.created_at >= start_date,
+            Reservation.status.in_(['completed', 'active'])
+        ).all()
+        
+        # Create CSV content
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Date', 'User', 'Parking Lot', 'Spot', 'Duration Hours', 'Amount', 'Status'])
+        
+        # Write data
+        for res in reservations:
+            writer.writerow([
+                res.created_at.strftime('%Y-%m-%d %H:%M'),
+                res.user.name,
+                res.parking_spot.parking_lot.name,
+                res.parking_spot.spot_number,
+                res.actual_duration_hours or res.reserved_duration_hours or 0,
+                res.final_cost or 0,
+                res.status
+            ])
+        
+        # Create response
+        from flask import Response
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=revenue-report-{days}days.csv'}
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Export revenue report error: {str(e)}")
+        return jsonify({'error': 'Failed to export revenue report'}), 500
+
+@api.route('/admin/reports/occupancy', methods=['GET'])
+@roles_required('admin')
+def export_occupancy_report():
+    """Export occupancy report as CSV"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        
+        from datetime import datetime, timedelta
+        import csv
+        from io import StringIO
+        
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        parking_lots = Parking_lot.query.all()
+        
+        # Create CSV content
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Parking Lot', 'Total Capacity', 'Active Reservations', 'Occupancy %', 'Total Revenue'])
+        
+        # Write data
+        for lot in parking_lots:
+            active_reservations = Reservation.query.filter(
+                Reservation.parking_spot.has(parking_lot_id=lot.id),
+                Reservation.status == 'active'
+            ).count()
+            
+            total_revenue = sum(
+                res.final_cost or 0 for res in Reservation.query.filter(
+                    Reservation.parking_spot.has(parking_lot_id=lot.id),
+                    Reservation.created_at >= start_date,
+                    Reservation.status.in_(['completed', 'active'])
+                ).all()
+            )
+            
+            occupancy = (active_reservations / lot.capacity * 100) if lot.capacity > 0 else 0
+            
+            writer.writerow([
+                lot.name,
+                lot.capacity,
+                active_reservations,
+                f"{occupancy:.1f}",
+                f"{total_revenue:.2f}"
+            ])
+        
+        # Create response
+        from flask import Response
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=occupancy-report-{days}days.csv'}
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Export occupancy report error: {str(e)}")
+        return jsonify({'error': 'Failed to export occupancy report'}), 500
+
+@api.route('/admin/reports/users', methods=['GET'])
+@roles_required('admin')
+def export_user_report():
+    """Export user activity report as CSV"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        
+        from datetime import datetime, timedelta
+        import csv
+        from io import StringIO
+        
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        users = User.query.all()
+        
+        # Create CSV content
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['User Name', 'Email', 'Join Date', 'Total Reservations', 'Total Spent', 'Last Activity'])
+        
+        # Write data
+        for user in users:
+            user_reservations = Reservation.query.filter(
+                Reservation.user_id == user.id,
+                Reservation.created_at >= start_date
+            ).all()
+            
+            total_spent = sum(res.final_cost or 0 for res in user_reservations)
+            last_activity = max([res.created_at for res in user_reservations]) if user_reservations else user.created_at
+            
+            writer.writerow([
+                user.name,
+                user.email,
+                user.created_at.strftime('%Y-%m-%d'),
+                len(user_reservations),
+                f"{total_spent:.2f}",
+                last_activity.strftime('%Y-%m-%d %H:%M')
+            ])
+        
+        # Create response
+        from flask import Response
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=user-report-{days}days.csv'}
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Export user report error: {str(e)}")
+        return jsonify({'error': 'Failed to export user report'}), 500
+
+@api.route('/admin/reports/predictive', methods=['GET'])
+@roles_required('admin')
+def generate_predictive_report():
+    """Generate predictive analysis report"""
+    try:
+        from datetime import datetime, timedelta
+        import statistics
+        
+        # Get historical data for analysis
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=90)  # 3 months of data
+        
+        reservations = Reservation.query.filter(
+            Reservation.created_at >= start_date,
+            Reservation.status.in_(['completed', 'active'])
+        ).all()
+        
+        # Revenue prediction based on trends
+        monthly_revenue = {}
+        for res in reservations:
+            month_key = res.created_at.strftime('%Y-%m')
+            if month_key not in monthly_revenue:
+                monthly_revenue[month_key] = 0
+            monthly_revenue[month_key] += res.final_cost or 0
+        
+        revenue_values = list(monthly_revenue.values())
+        avg_monthly_revenue = statistics.mean(revenue_values) if revenue_values else 0
+        revenue_trend = (revenue_values[-1] - revenue_values[0]) / len(revenue_values) if len(revenue_values) > 1 else 0
+        
+        # Occupancy prediction
+        parking_lots = Parking_lot.query.all()
+        total_capacity = sum(lot.capacity for lot in parking_lots)
+        current_occupancy = Reservation.query.filter(Reservation.status == 'active').count()
+        occupancy_rate = (current_occupancy / total_capacity * 100) if total_capacity > 0 else 0
+        
+        # Peak hours analysis
+        hourly_usage = {}
+        for res in reservations:
+            if res.start_time:
+                hour = res.start_time.hour
+                if hour not in hourly_usage:
+                    hourly_usage[hour] = 0
+                hourly_usage[hour] += 1
+        
+        peak_hours = sorted(hourly_usage.items(), key=lambda x: x[1], reverse=True)[:3]
+        
+        # Generate predictions
+        predictions = {
+            'revenue_forecast': {
+                'next_month_predicted': avg_monthly_revenue + revenue_trend,
+                'trend': 'increasing' if revenue_trend > 0 else 'decreasing',
+                'confidence': min(90, max(60, 80 - abs(revenue_trend) * 10))
+            },
+            'occupancy_forecast': {
+                'current_rate': occupancy_rate,
+                'predicted_peak_occupancy': min(100, occupancy_rate * 1.2),
+                'recommended_capacity_expansion': max(0, (current_occupancy * 1.5) - total_capacity)
+            },
+            'peak_hours': [
+                {'hour': f"{hour}:00", 'usage_count': count}
+                for hour, count in peak_hours
+            ],
+            'recommendations': [
+                'Consider dynamic pricing during peak hours' if peak_hours else 'Implement time-based pricing',
+                'Expand capacity in high-demand locations' if occupancy_rate > 80 else 'Optimize current capacity',
+                'Implement loyalty programs to increase revenue' if revenue_trend < 0 else 'Continue current growth strategies'
+            ]
+        }
+        
+        return jsonify(predictions), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Generate predictive report error: {str(e)}")
+        return jsonify({'error': 'Failed to generate predictive report'}), 500
+
+# ==================== USER EXPORT ROUTES ====================
+
+@api.route('/user/export-report', methods=['GET'])
+@auth_required('token', 'session')
+def export_user_report():
+    """Export user's personal parking report as CSV"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        
+        from datetime import datetime, timedelta
+        import csv
+        from io import StringIO
+        
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        reservations = Reservation.query.filter(
+            Reservation.user_id == current_user.id,
+            Reservation.created_at >= start_date
+        ).all()
+        
+        # Create CSV content
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Date', 'Parking Lot', 'Spot Number', 'Start Time', 'End Time', 'Duration Hours', 'Amount', 'Status'])
+        
+        # Write data
+        for res in reservations:
+            writer.writerow([
+                res.created_at.strftime('%Y-%m-%d'),
+                res.parking_spot.parking_lot.name,
+                res.parking_spot.spot_number,
+                res.start_time.strftime('%H:%M') if res.start_time else 'N/A',
+                res.end_time.strftime('%H:%M') if res.end_time else 'N/A',
+                res.actual_duration_hours or res.reserved_duration_hours or 0,
+                res.final_cost or 0,
+                res.status
+            ])
+        
+        # Create response
+        from flask import Response
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=personal-parking-report-{days}days.csv'}
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Export user report error: {str(e)}")
+        return jsonify({'error': 'Failed to export personal report'}), 500
 
 # Error handlers
 @api.errorhandler(401)

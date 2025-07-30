@@ -236,7 +236,7 @@
                                     <div class="cost-row total">
                                         <span>Additional Cost:</span>
                                         <span>${{ (extendDuration * (selectedReservation?.hourly_rate || 0)).toFixed(2)
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>

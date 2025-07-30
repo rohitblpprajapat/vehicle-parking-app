@@ -9,6 +9,8 @@ import ManageParkingLots from '../views/ManageParkingLots.vue'
 import ParkingLotDetails from '../views/ParkingLotDetails.vue'
 import ManageUsers from '../views/ManageUsers.vue'
 import AllReservations from '../views/AllReservations.vue'
+import UserProfile from '../views/UserProfile.vue'
+import AdminSummary from '../views/AdminSummary.vue'
 import { isAuthenticated, isAdmin } from '../utils/auth.js'
 
 const routes = [
@@ -42,6 +44,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/profile',
+    name: 'UserProfile',
+    component: UserProfile,
+    meta: { requiresAuth: true, userOnly: true }
+  },
+  {
     path: '/admin',
     redirect: '/admin/dashboard'
   },
@@ -73,6 +81,12 @@ const routes = [
     path: '/admin/reservations',
     name: 'AllReservations',
     component: AllReservations,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/summary',
+    name: 'AdminSummary',
+    component: AdminSummary,
     meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]

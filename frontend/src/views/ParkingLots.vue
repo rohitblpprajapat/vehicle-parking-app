@@ -156,7 +156,7 @@
                                     <div class="cost-row total">
                                         <span>Total Cost:</span>
                                         <span>${{ (selectedDuration * (selectedLot?.price_per_hour || 0)).toFixed(2)
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>

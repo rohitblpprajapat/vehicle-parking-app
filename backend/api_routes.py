@@ -5,6 +5,7 @@ from models import db, User, Role, Parking_lot, ParkingSpot, Reservation
 from sec import datastore
 import secrets
 from functools import wraps
+from datetime import datetime
 
 # Create API blueprint
 api = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -255,6 +256,17 @@ def change_password():
         return jsonify({'error': 'Failed to change password'}), 500
 
 # Parking lot routes
+def calculate_available_spots(lot):
+    """Calculate truly available spots (not occupied and no active reservations)"""
+    available_count = 0
+    for spot in lot.spots:
+        # Check if spot is not occupied and has no active reservations
+        if not spot.is_occupied:
+            has_active_reservation = any(res.status == 'active' for res in spot.reservations)
+            if not has_active_reservation:
+                available_count += 1
+    return available_count
+
 @api.route('/parking-lots', methods=['GET'])
 def get_parking_lots():
     """Get all parking lots"""
@@ -268,7 +280,7 @@ def get_parking_lots():
                 'location': lot.location,
                 'capacity': lot.capacity,
                 'price_per_hour': lot.price_per_hour,
-                'available_spots': len([spot for spot in lot.spots if not spot.is_occupied])
+                'available_spots': calculate_available_spots(lot)
             } for lot in lots]
         }), 200
         
@@ -283,21 +295,302 @@ def get_user_reservations():
     try:
         reservations = current_user.reservations
         
-        return jsonify({
-            'reservations': [{
+        reservation_list = []
+        for res in reservations:
+            parking_lot = res.parking_spot.parking_lot
+            
+            # Calculate duration in hours
+            duration_hours = (res.end_time - res.start_time).total_seconds() / 3600
+            
+            # Calculate cost
+            cost = parking_lot.price_per_hour * duration_hours
+            
+            # Check if spot is currently occupied
+            is_occupied = res.parking_spot.is_occupied
+            
+            reservation_data = {
                 'id': res.id,
-                'parking_lot': res.parking_spot.parking_lot.name,
+                'parking_lot': parking_lot.name,
                 'spot_number': res.parking_spot.spot_number,
+                'reservation_time': res.created_at.isoformat(),
                 'start_time': res.start_time.isoformat(),
                 'end_time': res.end_time.isoformat(),
+                'expires_at': res.end_time.isoformat(),
+                'duration': round(duration_hours, 2),
+                'cost': round(cost, 2),
                 'status': res.status,
+                'is_occupied': is_occupied,
+                'hourly_rate': parking_lot.price_per_hour,
                 'created_at': res.created_at.isoformat()
-            } for res in reservations]
+            }
+            
+            # Add occupied_at if the reservation is occupied (simulated)
+            if is_occupied:
+                reservation_data['occupied_at'] = res.start_time.isoformat()
+            
+            reservation_list.append(reservation_data)
+        
+        return jsonify({
+            'reservations': reservation_list
         }), 200
         
     except Exception as e:
         current_app.logger.error(f"Get reservations error: {str(e)}")
         return jsonify({'error': 'Failed to get reservations'}), 500
+
+@api.route('/reservations', methods=['POST'])
+@auth_required('token', 'session')
+def create_reservation():
+    """Auto-allocate and reserve the first available spot in a parking lot"""
+    try:
+        data = request.get_json()
+        lot_id = data.get('lot_id')
+        duration_hours = data.get('duration_hours', 1)  # Default 1 hour
+        
+        if not lot_id:
+            return jsonify({'error': 'Parking lot ID is required'}), 400
+        
+        # Find the parking lot
+        parking_lot = Parking_lot.query.get_or_404(lot_id)
+        
+        # Find the first available spot (not occupied and no active reservations)
+        available_spot = ParkingSpot.query.filter_by(
+            lot_id=lot_id, 
+            is_occupied=False
+        ).filter(
+            ~ParkingSpot.reservations.any(Reservation.status == 'active')
+        ).first()
+        
+        if not available_spot:
+            return jsonify({'error': 'No available spots in this parking lot'}), 400
+        
+        # Check if user already has an active reservation in this lot
+        existing_reservation = Reservation.query.filter_by(
+            user_id=current_user.id,
+            status='active'
+        ).join(ParkingSpot).filter_by(lot_id=lot_id).first()
+        
+        if existing_reservation:
+            return jsonify({'error': 'You already have an active reservation in this parking lot'}), 400
+        
+        # Create reservation
+        from datetime import datetime, timedelta
+        start_time = datetime.utcnow()
+        end_time = start_time + timedelta(hours=duration_hours)
+        
+        reservation = Reservation(
+            user_id=current_user.id,
+            spot_id=available_spot.id,
+            start_time=start_time,
+            end_time=end_time,
+            status='active'
+        )
+        
+        # Don't mark spot as occupied yet - only mark as occupied when user arrives
+        # The spot is now "reserved" through the active reservation
+        
+        db.session.add(reservation)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Spot reserved successfully',
+            'reservation': {
+                'id': reservation.id,
+                'parking_lot': parking_lot.name,
+                'spot_number': available_spot.spot_number,
+                'start_time': reservation.start_time.isoformat(),
+                'end_time': reservation.end_time.isoformat(),
+                'status': reservation.status,
+                'price_per_hour': parking_lot.price_per_hour,
+                'total_cost': parking_lot.price_per_hour * duration_hours
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Create reservation error: {str(e)}")
+        return jsonify({'error': 'Failed to create reservation'}), 500
+
+@api.route('/reservations/<int:reservation_id>/occupy', methods=['POST', 'PUT'])
+@auth_required('token', 'session')
+def occupy_spot(reservation_id):
+    """Mark a reserved spot as occupied (user has arrived)"""
+    try:
+        reservation = Reservation.query.filter_by(
+            id=reservation_id,
+            user_id=current_user.id,
+            status='active'
+        ).first()
+        
+        if not reservation:
+            return jsonify({'error': 'Reservation not found or not accessible'}), 404
+        
+        # Check if spot is already occupied
+        if reservation.parking_spot.is_occupied:
+            return jsonify({'error': 'Spot is already occupied'}), 400
+        
+        # Mark the parking spot as occupied and update timestamp
+        reservation.parking_spot.is_occupied = True
+        
+        # Update timestamp to track when user actually arrived
+        # For now, we'll use the reservation start_time update to track occupation
+        # In a real system, you might want to add an occupied_at field to the Reservation model
+        reservation.start_time = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Spot marked as occupied',
+            'reservation': {
+                'id': reservation.id,
+                'spot_number': reservation.parking_spot.spot_number,
+                'occupied_at': reservation.start_time.isoformat(),
+                'status': reservation.status
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Occupy spot error: {str(e)}")
+        return jsonify({'error': 'Failed to occupy spot'}), 500
+
+@api.route('/reservations/<int:reservation_id>/release', methods=['POST', 'PUT'])
+@auth_required('token', 'session')
+def release_spot(reservation_id):
+    """Release an occupied spot and complete the reservation"""
+    try:
+        reservation = Reservation.query.filter_by(
+            id=reservation_id,
+            user_id=current_user.id,
+            status='active'
+        ).first()
+        
+        if not reservation:
+            return jsonify({'error': 'Reservation not found or not accessible'}), 404
+        
+        # Calculate actual duration and cost
+        from datetime import datetime
+        release_time = datetime.utcnow()
+        actual_duration = (release_time - reservation.start_time).total_seconds() / 3600  # hours
+        
+        # Update reservation
+        reservation.end_time = release_time
+        reservation.status = 'completed'
+        
+        # Mark spot as available
+        reservation.parking_spot.is_occupied = False
+        
+        # Calculate final cost
+        parking_lot = reservation.parking_spot.parking_lot
+        total_cost = parking_lot.price_per_hour * actual_duration
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Spot released successfully',
+            'reservation': {
+                'id': reservation.id,
+                'spot_number': reservation.parking_spot.spot_number,
+                'start_time': reservation.start_time.isoformat(),
+                'end_time': reservation.end_time.isoformat(),
+                'duration_hours': round(actual_duration, 2),
+                'actual_duration_hours': round(actual_duration, 2),
+                'total_cost': round(total_cost, 2),
+                'final_cost': round(total_cost, 2),
+                'status': reservation.status
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Release spot error: {str(e)}")
+        return jsonify({'error': 'Failed to release spot'}), 500
+
+@api.route('/reservations/<int:reservation_id>/extend', methods=['POST', 'PUT'])
+@auth_required('token', 'session')
+def extend_reservation(reservation_id):
+    """Extend an active reservation"""
+    try:
+        data = request.get_json()
+        additional_hours = data.get('additional_hours', 1)
+        
+        reservation = Reservation.query.filter_by(
+            id=reservation_id,
+            user_id=current_user.id,
+            status='active'
+        ).first()
+        
+        if not reservation:
+            return jsonify({'error': 'Reservation not found or not accessible'}), 404
+        
+        # Extend the end time
+        from datetime import timedelta
+        reservation.end_time += timedelta(hours=additional_hours)
+        
+        db.session.commit()
+        
+        parking_lot = reservation.parking_spot.parking_lot
+        additional_cost = parking_lot.price_per_hour * additional_hours
+        
+        return jsonify({
+            'message': 'Reservation extended successfully',
+            'reservation': {
+                'id': reservation.id,
+                'new_end_time': reservation.end_time.isoformat(),
+                'new_expires_at': reservation.end_time.isoformat(),
+                'additional_cost': additional_cost,
+                'status': reservation.status
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Extend reservation error: {str(e)}")
+        return jsonify({'error': 'Failed to extend reservation'}), 500
+
+
+@api.route('/reservations/<int:reservation_id>/cancel', methods=['POST'])
+@auth_required('token', 'session')
+def cancel_reservation(reservation_id):
+    """Cancel an active reservation"""
+    try:
+        reservation = Reservation.query.filter_by(
+            id=reservation_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not reservation:
+            return jsonify({'error': 'Reservation not found or not accessible'}), 404
+        
+        # Only allow cancellation of active reservations that haven't been occupied
+        if reservation.status not in ['active']:
+            return jsonify({'error': 'Only active reservations can be cancelled'}), 400
+        
+        # For now, we'll assume any active reservation that started can't be cancelled
+        # In a real system, you'd check if the user has actually arrived at the spot
+        if datetime.utcnow() >= reservation.start_time:
+            return jsonify({'error': 'Cannot cancel a reservation that has already started'}), 400
+        
+        # Update reservation status to cancelled
+        reservation.status = 'cancelled'
+        
+        # Make the parking spot available again
+        reservation.parking_spot.is_occupied = False
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Reservation cancelled successfully',
+            'reservation': {
+                'id': reservation.id,
+                'status': reservation.status
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Cancel reservation error: {str(e)}")
+        return jsonify({'error': 'Failed to cancel reservation'}), 500
 
 # ==================== ADMIN ROUTES ====================
 
@@ -310,7 +603,8 @@ def admin_dashboard():
         lots = Parking_lot.query.all()
         total_spots = sum(lot.capacity for lot in lots)
         occupied_spots = sum(len([spot for spot in lot.spots if spot.is_occupied]) for lot in lots)
-        available_spots = total_spots - occupied_spots
+        reserved_spots = sum(len([spot for spot in lot.spots for res in spot.reservations if res.status == 'active' and not spot.is_occupied]) for lot in lots)
+        available_spots = total_spots - occupied_spots - reserved_spots
         
         # Get user statistics
         total_users = User.query.count()
@@ -343,12 +637,13 @@ def admin_dashboard():
                 'capacity': lot.capacity,
                 'price_per_hour': lot.price_per_hour,
                 'occupied_spots': len([spot for spot in lot.spots if spot.is_occupied]),
-                'available_spots': len([spot for spot in lot.spots if not spot.is_occupied]),
+                'available_spots': calculate_available_spots(lot),
                 'occupancy_rate': (len([spot for spot in lot.spots if spot.is_occupied]) / lot.capacity * 100) if lot.capacity > 0 else 0,
                 'spots': [{
                     'id': spot.id,
                     'spot_number': spot.spot_number,
-                    'is_occupied': spot.is_occupied
+                    'is_occupied': spot.is_occupied,
+                    'is_reserved': any(res.status == 'active' for res in spot.reservations)
                 } for spot in lot.spots]
             } for lot in lots]
         }
@@ -373,7 +668,7 @@ def get_admin_parking_lots():
             'capacity': lot.capacity,
             'price_per_hour': lot.price_per_hour,
             'occupied_spots': len([spot for spot in lot.spots if spot.is_occupied]),
-            'available_spots': len([spot for spot in lot.spots if not spot.is_occupied]),
+            'available_spots': calculate_available_spots(lot),
             'occupancy_rate': (len([spot for spot in lot.spots if spot.is_occupied]) / lot.capacity * 100) if lot.capacity > 0 else 0
         } for lot in lots]
         
@@ -524,7 +819,7 @@ def update_parking_lot(lot_id):
                 'location': lot.location,
                 'capacity': lot.capacity,
                 'price_per_hour': lot.price_per_hour,
-                'available_spots': len([spot for spot in lot.spots if not spot.is_occupied])
+                'available_spots': calculate_available_spots(lot)
             }
         }), 200
         

@@ -299,11 +299,15 @@ def get_user_reservations():
         for res in reservations:
             parking_lot = res.parking_spot.parking_lot
             
-            # Calculate duration in hours
-            duration_hours = (res.end_time - res.start_time).total_seconds() / 3600
-            
-            # Calculate cost
-            cost = parking_lot.price_per_hour * duration_hours
+            # Calculate duration and cost information
+            if res.actual_duration_hours and res.final_cost:
+                # Use actual values for completed reservations
+                duration_hours = res.actual_duration_hours
+                cost = res.final_cost
+            else:
+                # Use estimated values for active reservations
+                duration_hours = (res.end_time - res.start_time).total_seconds() / 3600
+                cost = parking_lot.price_per_hour * duration_hours
             
             # Check if spot is currently occupied
             is_occupied = res.parking_spot.is_occupied
@@ -320,13 +324,19 @@ def get_user_reservations():
                 'cost': round(cost, 2),
                 'status': res.status,
                 'is_occupied': is_occupied,
-                'hourly_rate': parking_lot.price_per_hour,
-                'created_at': res.created_at.isoformat()
+                'hourly_rate': res.hourly_rate or parking_lot.price_per_hour,
+                'created_at': res.created_at.isoformat(),
+                
+                # Enhanced cost breakdown
+                'reserved_duration_hours': res.reserved_duration_hours,
+                'actual_duration_hours': res.actual_duration_hours,
+                'estimated_cost': round(res.estimated_cost, 2) if res.estimated_cost else None,
+                'final_cost': round(res.final_cost, 2) if res.final_cost else None,
+                
+                # Enhanced timestamps
+                'occupied_at': res.occupied_at.isoformat() if res.occupied_at else None,
+                'released_at': res.released_at.isoformat() if res.released_at else None
             }
-            
-            # Add occupied_at if the reservation is occupied (simulated)
-            if is_occupied:
-                reservation_data['occupied_at'] = res.start_time.isoformat()
             
             reservation_list.append(reservation_data)
         
@@ -337,6 +347,199 @@ def get_user_reservations():
     except Exception as e:
         current_app.logger.error(f"Get reservations error: {str(e)}")
         return jsonify({'error': 'Failed to get reservations'}), 500
+
+@api.route('/reservations/history', methods=['GET'])
+@auth_required('token', 'session')
+def get_user_parking_history():
+    """Get detailed parking history with cost breakdown for current user"""
+    try:
+        # Get query parameters for filtering
+        status = request.args.get('status')  # Filter by status
+        start_date = request.args.get('start_date')  # Filter from date
+        end_date = request.args.get('end_date')  # Filter to date
+        limit = request.args.get('limit', 50, type=int)  # Default 50 records
+        offset = request.args.get('offset', 0, type=int)  # For pagination
+        
+        # Build query
+        query = Reservation.query.filter_by(user_id=current_user.id)
+        
+        # Apply filters
+        if status:
+            query = query.filter(Reservation.status == status)
+        if start_date:
+            from datetime import datetime
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            query = query.filter(Reservation.created_at >= start_dt)
+        if end_date:
+            from datetime import datetime
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            query = query.filter(Reservation.created_at <= end_dt)
+        
+        # Get total count before pagination
+        total_count = query.count()
+        
+        # Apply pagination and ordering
+        reservations = query.order_by(Reservation.created_at.desc()).offset(offset).limit(limit).all()
+        
+        # Calculate summary statistics
+        total_spent = sum(res.final_cost or res.estimated_cost or 0 for res in current_user.reservations)
+        total_hours = sum(res.actual_duration_hours or res.reserved_duration_hours or 0 for res in current_user.reservations)
+        completed_reservations = len([res for res in current_user.reservations if res.status == 'completed'])
+        
+        history_data = []
+        for res in reservations:
+            parking_lot = res.parking_spot.parking_lot
+            
+            # Calculate cost breakdown
+            estimated_cost = res.estimated_cost or 0
+            final_cost = res.final_cost or estimated_cost
+            cost_difference = final_cost - estimated_cost if res.final_cost else 0
+            
+            history_item = {
+                'id': res.id,
+                'parking_lot': {
+                    'id': parking_lot.id,
+                    'name': parking_lot.name,
+                    'location': parking_lot.location
+                },
+                'parking_spot': {
+                    'id': res.parking_spot.id,
+                    'spot_number': res.parking_spot.spot_number
+                },
+                'timestamps': {
+                    'created_at': res.created_at.isoformat(),
+                    'start_time': res.start_time.isoformat(),
+                    'end_time': res.end_time.isoformat(),
+                    'occupied_at': res.occupied_at.isoformat() if res.occupied_at else None,
+                    'released_at': res.released_at.isoformat() if res.released_at else None
+                },
+                'duration': {
+                    'reserved_hours': res.reserved_duration_hours,
+                    'actual_hours': res.actual_duration_hours,
+                    'difference_hours': (res.actual_duration_hours - res.reserved_duration_hours) if (res.actual_duration_hours and res.reserved_duration_hours) else None
+                },
+                'cost_breakdown': {
+                    'hourly_rate': res.hourly_rate,
+                    'estimated_cost': round(estimated_cost, 2),
+                    'final_cost': round(final_cost, 2),
+                    'cost_difference': round(cost_difference, 2),
+                    'currency': 'USD'
+                },
+                'status': res.status
+            }
+            
+            history_data.append(history_item)
+        
+        return jsonify({
+            'history': history_data,
+            'summary': {
+                'total_reservations': total_count,
+                'completed_reservations': completed_reservations,
+                'total_spent': round(total_spent, 2),
+                'total_hours_parked': round(total_hours, 2),
+                'average_cost_per_hour': round(total_spent / total_hours, 2) if total_hours > 0 else 0
+            },
+            'pagination': {
+                'limit': limit,
+                'offset': offset,
+                'total_count': total_count
+            }
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Get parking history error: {str(e)}")
+        return jsonify({'error': 'Failed to get parking history'}), 500
+
+@api.route('/user/spending-summary', methods=['GET'])
+@auth_required('token', 'session')
+def get_user_spending_summary():
+    """Get user's parking spending summary and statistics"""
+    try:
+        # Get date range parameters
+        days = request.args.get('days', 30, type=int)  # Default last 30 days
+        
+        from datetime import datetime, timedelta
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        # Get user's reservations in the specified period
+        reservations = Reservation.query.filter_by(user_id=current_user.id).filter(
+            Reservation.created_at >= start_date
+        ).all()
+        
+        # Calculate statistics
+        total_reservations = len(reservations)
+        completed_reservations = [res for res in reservations if res.status == 'completed']
+        active_reservations = [res for res in reservations if res.status == 'active']
+        cancelled_reservations = [res for res in reservations if res.status == 'cancelled']
+        
+        total_spent = sum(res.final_cost or res.estimated_cost or 0 for res in reservations)
+        total_hours = sum(res.actual_duration_hours or res.reserved_duration_hours or 0 for res in reservations)
+        
+        # Calculate savings/overcharges
+        estimated_total = sum(res.estimated_cost or 0 for res in completed_reservations)
+        final_total = sum(res.final_cost or 0 for res in completed_reservations)
+        savings = estimated_total - final_total  # Positive means user paid less than estimated
+        
+        # Group spending by parking lot
+        lot_spending = {}
+        for res in reservations:
+            lot_name = res.parking_spot.parking_lot.name
+            cost = res.final_cost or res.estimated_cost or 0
+            if lot_name not in lot_spending:
+                lot_spending[lot_name] = {'total_cost': 0, 'visits': 0, 'total_hours': 0}
+            lot_spending[lot_name]['total_cost'] += cost
+            lot_spending[lot_name]['visits'] += 1
+            lot_spending[lot_name]['total_hours'] += res.actual_duration_hours or res.reserved_duration_hours or 0
+        
+        # Convert to list and sort by spending
+        lot_breakdown = [
+            {
+                'lot_name': lot_name,
+                'total_spent': round(data['total_cost'], 2),
+                'visits': data['visits'],
+                'total_hours': round(data['total_hours'], 2),
+                'average_cost_per_visit': round(data['total_cost'] / data['visits'], 2) if data['visits'] > 0 else 0
+            }
+            for lot_name, data in lot_spending.items()
+        ]
+        lot_breakdown.sort(key=lambda x: x['total_spent'], reverse=True)
+        
+        return jsonify({
+            'period': {
+                'days': days,
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat()
+            },
+            'summary': {
+                'total_reservations': total_reservations,
+                'completed_reservations': len(completed_reservations),
+                'active_reservations': len(active_reservations),
+                'cancelled_reservations': len(cancelled_reservations),
+                'total_spent': round(total_spent, 2),
+                'total_hours_parked': round(total_hours, 2),
+                'average_cost_per_hour': round(total_spent / total_hours, 2) if total_hours > 0 else 0,
+                'average_cost_per_reservation': round(total_spent / total_reservations, 2) if total_reservations > 0 else 0,
+                'savings_vs_estimate': round(savings, 2)  # Positive means saved money, negative means paid more
+            },
+            'spending_by_parking_lot': lot_breakdown,
+            'recent_activity': [
+                {
+                    'id': res.id,
+                    'parking_lot': res.parking_spot.parking_lot.name,
+                    'spot_number': res.parking_spot.spot_number,
+                    'date': res.created_at.isoformat(),
+                    'duration_hours': res.actual_duration_hours or res.reserved_duration_hours,
+                    'cost': round(res.final_cost or res.estimated_cost or 0, 2),
+                    'status': res.status
+                }
+                for res in sorted(reservations, key=lambda x: x.created_at, reverse=True)[:10]
+            ]
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Get spending summary error: {str(e)}")
+        return jsonify({'error': 'Failed to get spending summary'}), 500
 
 @api.route('/reservations', methods=['POST'])
 @auth_required('token', 'session')
@@ -378,12 +581,18 @@ def create_reservation():
         start_time = datetime.utcnow()
         end_time = start_time + timedelta(hours=duration_hours)
         
+        # Calculate initial cost estimate
+        estimated_cost = parking_lot.price_per_hour * duration_hours
+        
         reservation = Reservation(
             user_id=current_user.id,
             spot_id=available_spot.id,
             start_time=start_time,
             end_time=end_time,
-            status='active'
+            status='active',
+            reserved_duration_hours=duration_hours,
+            estimated_cost=estimated_cost,
+            hourly_rate=parking_lot.price_per_hour
         )
         
         # Don't mark spot as occupied yet - only mark as occupied when user arrives
@@ -429,13 +638,12 @@ def occupy_spot(reservation_id):
         if reservation.parking_spot.is_occupied:
             return jsonify({'error': 'Spot is already occupied'}), 400
         
-        # Mark the parking spot as occupied and update timestamp
+        # Mark the parking spot as occupied and track arrival time
         reservation.parking_spot.is_occupied = True
+        reservation.occupied_at = datetime.utcnow()
         
-        # Update timestamp to track when user actually arrived
-        # For now, we'll use the reservation start_time update to track occupation
-        # In a real system, you might want to add an occupied_at field to the Reservation model
-        reservation.start_time = datetime.utcnow()
+        # Update start_time to actual arrival time for accurate billing
+        reservation.start_time = reservation.occupied_at
         
         db.session.commit()
         
@@ -444,7 +652,7 @@ def occupy_spot(reservation_id):
             'reservation': {
                 'id': reservation.id,
                 'spot_number': reservation.parking_spot.spot_number,
-                'occupied_at': reservation.start_time.isoformat(),
+                'occupied_at': reservation.occupied_at.isoformat(),
                 'status': reservation.status
             }
         }), 200
@@ -469,20 +677,28 @@ def release_spot(reservation_id):
             return jsonify({'error': 'Reservation not found or not accessible'}), 404
         
         # Calculate actual duration and cost
-        from datetime import datetime
         release_time = datetime.utcnow()
-        actual_duration = (release_time - reservation.start_time).total_seconds() / 3600  # hours
         
-        # Update reservation
+        # Calculate duration from when user actually occupied the spot
+        if reservation.occupied_at:
+            actual_duration = (release_time - reservation.occupied_at).total_seconds() / 3600  # hours
+        else:
+            # Fallback to original start time if occupied_at is not set
+            actual_duration = (release_time - reservation.start_time).total_seconds() / 3600  # hours
+        
+        # Calculate final cost based on actual duration
+        parking_lot = reservation.parking_spot.parking_lot
+        final_cost = parking_lot.price_per_hour * actual_duration
+        
+        # Update reservation with final details
         reservation.end_time = release_time
+        reservation.released_at = release_time
         reservation.status = 'completed'
+        reservation.actual_duration_hours = actual_duration
+        reservation.final_cost = final_cost
         
         # Mark spot as available
         reservation.parking_spot.is_occupied = False
-        
-        # Calculate final cost
-        parking_lot = reservation.parking_spot.parking_lot
-        total_cost = parking_lot.price_per_hour * actual_duration
         
         db.session.commit()
         
@@ -493,10 +709,14 @@ def release_spot(reservation_id):
                 'spot_number': reservation.parking_spot.spot_number,
                 'start_time': reservation.start_time.isoformat(),
                 'end_time': reservation.end_time.isoformat(),
+                'occupied_at': reservation.occupied_at.isoformat() if reservation.occupied_at else None,
+                'released_at': reservation.released_at.isoformat(),
                 'duration_hours': round(actual_duration, 2),
                 'actual_duration_hours': round(actual_duration, 2),
-                'total_cost': round(total_cost, 2),
-                'final_cost': round(total_cost, 2),
+                'estimated_cost': round(reservation.estimated_cost, 2) if reservation.estimated_cost else 0,
+                'final_cost': round(final_cost, 2),
+                'total_cost': round(final_cost, 2),
+                'hourly_rate': reservation.hourly_rate,
                 'status': reservation.status
             }
         }), 200
@@ -970,6 +1190,10 @@ def get_admin_user_reservations(user_id):
         
         reservations_data = []
         for reservation, spot, lot in reservations:
+            # Calculate cost information
+            estimated_cost = reservation.estimated_cost or 0
+            final_cost = reservation.final_cost or estimated_cost
+            
             reservations_data.append({
                 'id': reservation.id,
                 'start_time': reservation.start_time.isoformat(),
@@ -984,6 +1208,19 @@ def get_admin_user_reservations(user_id):
                 'parking_spot': {
                     'id': spot.id,
                     'spot_number': spot.spot_number
+                },
+                'timestamps': {
+                    'occupied_at': reservation.occupied_at.isoformat() if reservation.occupied_at else None,
+                    'released_at': reservation.released_at.isoformat() if reservation.released_at else None
+                },
+                'duration': {
+                    'reserved_hours': reservation.reserved_duration_hours,
+                    'actual_hours': reservation.actual_duration_hours
+                },
+                'cost_breakdown': {
+                    'hourly_rate': reservation.hourly_rate,
+                    'estimated_cost': round(estimated_cost, 2),
+                    'final_cost': round(final_cost, 2)
                 }
             })
         
@@ -1067,6 +1304,127 @@ def get_all_reservations():
     except Exception as e:
         current_app.logger.error(f"Get all reservations error: {str(e)}")
         return jsonify({'error': 'Failed to fetch reservations'}), 500
+
+@api.route('/admin/parking-history', methods=['GET'])
+@roles_required('admin')
+def get_admin_parking_history():
+    """Get comprehensive parking history with cost analysis for admin"""
+    try:
+        # Get query parameters
+        user_id = request.args.get('user_id')
+        status = request.args.get('status')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Build query with joins
+        query = db.session.query(Reservation, ParkingSpot, Parking_lot, User).join(
+            ParkingSpot, Reservation.spot_id == ParkingSpot.id
+        ).join(
+            Parking_lot, ParkingSpot.lot_id == Parking_lot.id
+        ).join(
+            User, Reservation.user_id == User.id
+        )
+        
+        # Apply filters
+        if user_id:
+            query = query.filter(Reservation.user_id == user_id)
+        if status:
+            query = query.filter(Reservation.status == status)
+        if start_date:
+            from datetime import datetime
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            query = query.filter(Reservation.created_at >= start_dt)
+        if end_date:
+            from datetime import datetime
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            query = query.filter(Reservation.created_at <= end_dt)
+        
+        # Get total count and summary statistics
+        total_count = query.count()
+        all_reservations = query.all()
+        
+        # Calculate system-wide statistics
+        total_revenue = sum(res.final_cost or res.estimated_cost or 0 for res, spot, lot, user in all_reservations)
+        total_hours = sum(res.actual_duration_hours or res.reserved_duration_hours or 0 for res, spot, lot, user in all_reservations)
+        completed_count = len([res for res, spot, lot, user in all_reservations if res.status == 'completed'])
+        active_count = len([res for res, spot, lot, user in all_reservations if res.status == 'active'])
+        cancelled_count = len([res for res, spot, lot, user in all_reservations if res.status == 'cancelled'])
+        
+        # Apply pagination and ordering
+        paginated_reservations = query.order_by(Reservation.created_at.desc()).offset(offset).limit(limit).all()
+        
+        history_data = []
+        for reservation, spot, lot, user in paginated_reservations:
+            # Calculate cost breakdown
+            estimated_cost = reservation.estimated_cost or 0
+            final_cost = reservation.final_cost or estimated_cost
+            cost_difference = final_cost - estimated_cost if reservation.final_cost else 0
+            
+            history_item = {
+                'id': reservation.id,
+                'user': {
+                    'id': user.id,
+                    'name': user.name,
+                    'email': user.email
+                },
+                'parking_lot': {
+                    'id': lot.id,
+                    'name': lot.name,
+                    'location': lot.location,
+                    'current_hourly_rate': lot.price_per_hour
+                },
+                'parking_spot': {
+                    'id': spot.id,
+                    'spot_number': spot.spot_number
+                },
+                'timestamps': {
+                    'created_at': reservation.created_at.isoformat(),
+                    'start_time': reservation.start_time.isoformat(),
+                    'end_time': reservation.end_time.isoformat(),
+                    'occupied_at': reservation.occupied_at.isoformat() if reservation.occupied_at else None,
+                    'released_at': reservation.released_at.isoformat() if reservation.released_at else None
+                },
+                'duration': {
+                    'reserved_hours': reservation.reserved_duration_hours,
+                    'actual_hours': reservation.actual_duration_hours,
+                    'difference_hours': (reservation.actual_duration_hours - reservation.reserved_duration_hours) if (reservation.actual_duration_hours and reservation.reserved_duration_hours) else None
+                },
+                'cost_breakdown': {
+                    'hourly_rate_at_reservation': reservation.hourly_rate,
+                    'estimated_cost': round(estimated_cost, 2),
+                    'final_cost': round(final_cost, 2),
+                    'cost_difference': round(cost_difference, 2),
+                    'revenue_generated': round(final_cost, 2)
+                },
+                'status': reservation.status
+            }
+            
+            history_data.append(history_item)
+        
+        return jsonify({
+            'parking_history': history_data,
+            'system_summary': {
+                'total_reservations': total_count,
+                'completed_reservations': completed_count,
+                'active_reservations': active_count,
+                'cancelled_reservations': cancelled_count,
+                'total_revenue': round(total_revenue, 2),
+                'total_hours_parked': round(total_hours, 2),
+                'average_revenue_per_hour': round(total_revenue / total_hours, 2) if total_hours > 0 else 0,
+                'average_revenue_per_reservation': round(total_revenue / total_count, 2) if total_count > 0 else 0
+            },
+            'pagination': {
+                'limit': limit,
+                'offset': offset,
+                'total_count': total_count
+            }
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Get admin parking history error: {str(e)}")
+        return jsonify({'error': 'Failed to fetch parking history'}), 500
 
 # Error handlers
 @api.errorhandler(401)

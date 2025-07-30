@@ -51,3 +51,15 @@ class Reservation(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='active')  # active, completed, cancelled
     
+    # Cost and duration tracking
+    reserved_duration_hours = db.Column(db.Float, nullable=True)  # Originally reserved duration
+    actual_duration_hours = db.Column(db.Float, nullable=True)    # Actual parking duration
+    estimated_cost = db.Column(db.Float, nullable=True)           # Initial estimated cost
+    final_cost = db.Column(db.Float, nullable=True)               # Final calculated cost
+    hourly_rate = db.Column(db.Float, nullable=True)              # Rate at time of reservation
+    
+    # Timestamps for better tracking
+    occupied_at = db.Column(db.DateTime, nullable=True)           # When user actually arrived
+    released_at = db.Column(db.DateTime, nullable=True)           # When user left
+    
+    

@@ -271,7 +271,6 @@ def calculate_available_spots(lot):
     return available_count
 
 @api.route('/parking-lots', methods=['GET'])
-@cached(timeout=300)  # Cache for 5 minutes
 def get_parking_lots():
     """Get all parking lots"""
     try:
@@ -294,7 +293,6 @@ def get_parking_lots():
 
 @api.route('/parking-lots/<int:lot_id>', methods=['GET'])
 @auth_required('token', 'session')
-@cached(timeout=60)  # Cache for 1 minute for available spots
 def get_parking_lot_details(lot_id):
     """Get parking lot details for regular users"""
     try:
@@ -485,7 +483,6 @@ def get_user_parking_history():
 
 @api.route('/user/spending-summary', methods=['GET'])
 @auth_required('token', 'session')
-@cached(timeout=600)  # Cache for 10 minutes
 def get_user_spending_summary():
     """Get user's parking spending summary and statistics"""
     try:
@@ -1515,7 +1512,6 @@ def get_admin_parking_history():
 
 @api.route('/admin/analytics', methods=['GET'])
 @roles_required('admin')
-@cached(timeout=1800)  # Cache for 30 minutes
 def get_admin_analytics():
     """Get comprehensive analytics for admin dashboard"""
     try:
@@ -1658,7 +1654,6 @@ def get_admin_analytics():
 
 @api.route('/admin/analytics/previous', methods=['GET'])
 @roles_required('admin')
-@cached(timeout=1800)  # Cache for 30 minutes
 def get_admin_analytics_previous():
     """Get analytics for the previous period for comparison"""
     try:

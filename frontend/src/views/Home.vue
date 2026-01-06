@@ -1,137 +1,74 @@
 <template>
-    <div class="home">
-        <header class="hero-section">
-            <div class="hero-content">
-                <h1>Vehicle Parking Management System</h1>
-                <p>Find and reserve parking spots easily</p>
-                <div class="cta-buttons">
-                    <router-link to="/login" class="btn btn-primary">Get Started</router-link>
-                    <router-link to="/parking-lots" class="btn btn-secondary">View Parking Lots</router-link>
+    <AppLayout>
+        <div class="home">
+            <header class="text-center py-5 mb-5 bg-light rounded-3 shadow-sm hero-section">
+                <div class="container py-5">
+                    <h1 class="display-3 fw-bold text-primary mb-3">Vehicle Parking Management</h1>
+                    <p class="lead text-muted mb-4">Find and reserve parking spots easily, anytime, anywhere.</p>
+                    <div class="d-flex gap-3 justify-content-center">
+                        <router-link to="/login" class="btn btn-primary btn-lg px-5">Get Started</router-link>
+                        <router-link to="/parking-lots" class="btn btn-outline-primary btn-lg px-5">View Lots</router-link>
+                    </div>
                 </div>
-            </div>
-        </header>
+            </header>
 
-        <section class="features">
-            <div class="container">
-                <h2>Features</h2>
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <h3>Real-time Availability</h3>
-                        <p>Check parking spot availability in real-time</p>
+            <section class="mb-5">
+                <div class="text-center mb-5">
+                    <h2 class="fw-bold">Why Choose Us?</h2>
+                    <p class="text-muted">Simple, fast, and secure parking solutions</p>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <BaseCard class="h-100 text-center border-0 shadow-sm hover-up">
+                            <div class="mb-3 text-primary">
+                                <i class="bi bi-clock-history fs-1"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-3">Real-time Availability</h3>
+                            <p class="text-muted mb-0">Check parking spot availability in real-time across multiple locations to save time.</p>
+                        </BaseCard>
                     </div>
-                    <div class="feature-card">
-                        <h3>Easy Reservations</h3>
-                        <p>Reserve your parking spot in advance</p>
+                    
+                    <div class="col-md-4">
+                        <BaseCard class="h-100 text-center border-0 shadow-sm hover-up">
+                            <div class="mb-3 text-success">
+                                <i class="bi bi-calendar-check fs-1"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-3">Easy Reservations</h3>
+                            <p class="text-muted mb-0">Reserve your preferred parking spot in advance with just a few clicks.</p>
+                        </BaseCard>
                     </div>
-                    <div class="feature-card">
-                        <h3>Multiple Locations</h3>
-                        <p>Access parking lots across different locations</p>
+                    
+                    <div class="col-md-4">
+                        <BaseCard class="h-100 text-center border-0 shadow-sm hover-up">
+                            <div class="mb-3 text-info">
+                                <i class="bi bi-geo-alt fs-1"></i>
+                            </div>
+                            <h3 class="h5 fw-bold mb-3">Multiple Locations</h3>
+                            <p class="text-muted mb-0">Access a wide network of parking lots conveniently located around the city.</p>
+                        </BaseCard>
                     </div>
                 </div>
-            </div>
-        </section>
-    </div>
+            </section>
+        </div>
+    </AppLayout>
 </template>
 
 <script setup>
-// Home page logic here
+import AppLayout from '../components/layout/AppLayout.vue'
+import BaseCard from '../components/common/BaseCard.vue'
 </script>
 
 <style scoped>
-.home {
-    min-height: 100vh;
-}
-
 .hero-section {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 100px 20px;
-    text-align: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
 }
 
-.hero-content h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+.hover-up {
+    transition: transform 0.3s ease;
 }
 
-.hero-content p {
-    font-size: 1.2rem;
-    margin-bottom: 2rem;
-}
-
-.cta-buttons {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.btn {
-    padding: 12px 24px;
-    border-radius: 6px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
-.btn-primary {
-    background-color: #4CAF50;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #45a049;
-}
-
-.btn-secondary {
-    background-color: transparent;
-    color: white;
-    border: 2px solid white;
-}
-
-.btn-secondary:hover {
-    background-color: white;
-    color: #667eea;
-}
-
-.features {
-    padding: 80px 20px;
-    background-color: #f8f9fa;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.features h2 {
-    text-align: center;
-    margin-bottom: 3rem;
-    font-size: 2.5rem;
-    color: #333;
-}
-
-.feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-}
-
-.feature-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    text-align: center;
-}
-
-.feature-card h3 {
-    color: #667eea;
-    margin-bottom: 1rem;
-}
-
-.feature-card p {
-    color: #666;
-    line-height: 1.6;
+.hover-up:hover {
+    transform: translateY(-5px);
 }
 </style>

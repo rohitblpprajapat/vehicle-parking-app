@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_security.models import fsqla_v3 as fsqla
 from flask_security import UserMixin, RoleMixin
 from datetime import datetime
+from utils import get_ist_now
 
 db = SQLAlchemy()
 
@@ -26,8 +27,8 @@ class Parking_lot(db.Model):
     location = db.Column(db.String(120), nullable=False)
     capacity = db.Column(db.Integer, nullable=False)
     price_per_hour = db.Column(db.Float, nullable=False, default=5.0)  # Price per hour
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_now)
+    updated_at = db.Column(db.DateTime, default=get_ist_now, onupdate=get_ist_now)
     
     # Relationship to parking spots
     spots = db.relationship('ParkingSpot', backref='parking_lot', lazy=True, cascade='all, delete-orphan')
@@ -37,7 +38,7 @@ class ParkingSpot(db.Model):
     lot_id = db.Column(db.Integer, db.ForeignKey('parking_lot.id'), nullable=False)
     spot_number = db.Column(db.String(20), nullable=False)
     is_occupied = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_now)
     
     # Relationship to reservations
     reservations = db.relationship('Reservation', backref='parking_spot', lazy=True)
@@ -48,7 +49,7 @@ class Reservation(db.Model):
     spot_id = db.Column(db.Integer, db.ForeignKey('parking_spot.id'), nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_ist_now)
     status = db.Column(db.String(20), default='active')  # active, completed, cancelled
     
     # Cost and duration tracking
@@ -61,5 +62,9 @@ class Reservation(db.Model):
     # Timestamps for better tracking
     occupied_at = db.Column(db.DateTime, nullable=True)           # When user actually arrived
     released_at = db.Column(db.DateTime, nullable=True)           # When user left
+    
+    # Vehicle details
+    vehicle_number = db.Column(db.String(20), nullable=True)      # Vehicle registration number
+
     
     

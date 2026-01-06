@@ -1,136 +1,150 @@
 <template>
-    <div class="parking-lot-details">
-        <nav class="navbar">
-            <div class="nav-brand">
-                <h3>Parking Lot Details</h3>
+    <AppLayout>
+        <!-- Loading State -->
+        <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
-            <div class="nav-links">
-                <!-- Admin Navigation -->
-                <template v-if="isAdmin">
-                    <router-link to="/admin/dashboard" class="nav-link">Dashboard</router-link>
-                    <router-link to="/admin/parking-lots" class="nav-link">Manage Lots</router-link>
-                    <router-link to="/admin/users" class="nav-link">Manage Users</router-link>
-                    <router-link to="/admin/reservations" class="nav-link">All Reservations</router-link>
-                    <router-link to="/admin/summary" class="nav-link">Analytics</router-link>
-                </template>
-                <!-- Regular User Navigation -->
-                <template v-else>
-                    <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
-                    <router-link to="/parking-lots" class="nav-link">Parking Lots</router-link>
-                    <router-link to="/reservations" class="nav-link">My Reservations</router-link>
-                    <router-link to="/profile" class="nav-link">Profile</router-link>
-                </template>
-                <button @click="logout" class="btn btn-logout">Logout</button>
-            </div>
-        </nav>
+            <div class="mt-3 text-muted">Loading parking lot details...</div>
+        </div>
 
-        <main class="content">
-            <div class="container">
-                <!-- Loading State -->
-                <div v-if="loading" class="loading">
-                    Loading parking lot details...
+        <!-- Error State -->
+        <div v-else-if="error" class="alert alert-danger" role="alert">
+            {{ error }}
+        </div>
+
+        <!-- Content -->
+        <div v-else-if="parkingLot" class="parking-lot-details">
+            <!-- Header -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 pb-3 border-bottom">
+                <div>
+                    <h1 class="h2 mb-1">{{ parkingLot.name }}</h1>
+                    <p class="text-muted mb-0"><i class="bi bi-geo-alt me-1"></i>{{ parkingLot.location }}</p>
                 </div>
-
-                <!-- Error State -->
-                <div v-if="error" class="error-message">
-                    {{ error }}
-                </div>
-
-                <!-- Parking Lot Details -->
-                <div v-if="!loading && !error && parkingLot" class="details-container">
-                    <!-- Header Section -->
-                    <div class="details-header">
-                        <div class="header-info">
-                            <h1>{{ parkingLot.name }}</h1>
-                            <p class="location">{{ parkingLot.location }}</p>
-                        </div>
-                        <div class="header-actions">
-                            <router-link :to="isAdmin ? '/admin/parking-lots' : '/parking-lots'"
-                                class="btn btn-secondary">
-                                ← Back to Lots
-                            </router-link>
-                        </div>
-                    </div>
-
-                    <!-- Summary Cards -->
-                    <div class="summary-grid">
-                        <div class="summary-card">
-                            <div class="card-icon capacity-icon">🏗️</div>
-                            <div class="card-content">
-                                <h3>Total Capacity</h3>
-                                <p class="card-value">{{ parkingLot.capacity }}</p>
-                                <span class="card-label">spots</span>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="card-icon available-icon">✅</div>
-                            <div class="card-content">
-                                <h3>Available</h3>
-                                <p class="card-value available">{{ parkingLot.available_spots }}</p>
-                                <span class="card-label">spots</span>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="card-icon occupied-icon">🚗</div>
-                            <div class="card-content">
-                                <h3>Occupied</h3>
-                                <p class="card-value occupied">{{ parkingLot.occupied_spots }}</p>
-                                <span class="card-label">spots</span>
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="card-icon price-icon">💰</div>
-                            <div class="card-content">
-                                <h3>Price per Hour</h3>
-                                <p class="card-value price">${{ parkingLot.price_per_hour }}</p>
-                                <span class="card-label">per hour</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Occupancy Overview -->
-                    <div class="occupancy-section">
-                        <h2>Occupancy Overview</h2>
-                        <div class="occupancy-bar-large">
-                            <div class="occupancy-fill-large" :style="{ width: parkingLot.occupancy_rate + '%' }"></div>
-                        </div>
-                        <p class="occupancy-text">
-                            {{ parkingLot.occupancy_rate.toFixed(1) }}% occupied
-                            ({{ parkingLot.occupied_spots }} of {{ parkingLot.capacity }} spots)
-                        </p>
-                    </div>
-
-                    <!-- Parking Spots Grid -->
-                    <div class="spots-section">
-                        <h2>Parking Spots Layout</h2>
-                        <div class="spots-legend">
-                            <div class="legend-item">
-                                <div class="spot-indicator available"></div>
-                                <span>Available</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="spot-indicator occupied"></div>
-                                <span>Occupied</span>
-                            </div>
-                        </div>
-                        <div class="spots-grid">
-                            <div v-for="spot in parkingLot.spots" :key="spot.id"
-                                :class="['spot', { 'occupied': spot.is_occupied }]"
-                                :title="`Spot ${spot.spot_number} - ${spot.is_occupied ? 'Occupied' : 'Available'}`">
-                                {{ spot.spot_number }}
-                            </div>
-                        </div>
-                    </div>
+                <div class="mt-3 mt-md-0">
+                    <router-link :to="isAdmin ? '/admin/parking-lots' : '/parking-lots'" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Lots
+                    </router-link>
                 </div>
             </div>
-        </main>
-    </div>
+
+            <!-- Summary Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-3 col-sm-6">
+                    <BaseCard class="h-100 border-start border-4 border-info">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 bg-info bg-opacity-10 p-3 rounded">
+                                <span class="fs-2">🏗️</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted text-uppercase small mb-1">Total Capacity</h6>
+                                <div class="h3 fw-bold mb-0 text-dark">{{ parkingLot.capacity }}</div>
+                                <small class="text-muted">spots</small>
+                            </div>
+                        </div>
+                    </BaseCard>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <BaseCard class="h-100 border-start border-4 border-success">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded">
+                                <span class="fs-2">✅</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted text-uppercase small mb-1">Available</h6>
+                                <div class="h3 fw-bold mb-0 text-success">{{ parkingLot.available_spots }}</div>
+                                <small class="text-muted">spots</small>
+                            </div>
+                        </div>
+                    </BaseCard>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <BaseCard class="h-100 border-start border-4 border-danger">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 bg-danger bg-opacity-10 p-3 rounded">
+                                <span class="fs-2">🚗</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted text-uppercase small mb-1">Occupied</h6>
+                                <div class="h3 fw-bold mb-0 text-danger">{{ parkingLot.occupied_spots }}</div>
+                                <small class="text-muted">spots</small>
+                            </div>
+                        </div>
+                    </BaseCard>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <BaseCard class="h-100 border-start border-4 border-warning">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0 bg-warning bg-opacity-10 p-3 rounded">
+                                <span class="fs-2">💰</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted text-uppercase small mb-1">Price</h6>
+                                <div class="h3 fw-bold mb-0 text-dark">{{ $currency(parkingLot.price_per_hour) }}</div>
+
+                                <small class="text-muted">per hour</small>
+                            </div>
+                        </div>
+                    </BaseCard>
+                </div>
+            </div>
+
+            <!-- Occupancy Progress -->
+            <BaseCard class="mb-4">
+                <h5 class="card-title mb-3">Occupancy Overview</h5>
+                <div class="progress" style="height: 25px;">
+                    <div 
+                        class="progress-bar progress-bar-striped progress-bar-animated" 
+                        role="progressbar" 
+                        :style="{ width: parkingLot.occupancy_rate + '%' }"
+                        :class="getOccupancyClass(parkingLot.occupancy_rate)"
+                        :aria-valuenow="parkingLot.occupancy_rate" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100"
+                    ></div>
+                </div>
+                <div class="mt-2 text-center text-muted fw-bold">
+                    {{ parkingLot.occupancy_rate.toFixed(1) }}% occupied 
+                    <span class="fw-normal">({{ parkingLot.occupied_spots }} of {{ parkingLot.capacity }} spots)</span>
+                </div>
+            </BaseCard>
+
+            <!-- Spots Grid -->
+            <BaseCard title="Parking Spots Layout">
+                <div class="d-flex gap-4 mb-4 justify-content-center justify-content-md-start">
+                    <div class="d-flex align-items-center">
+                        <div class="spot-legend available me-2"></div>
+                        <span>Available</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="spot-legend occupied me-2"></div>
+                        <span>Occupied</span>
+                    </div>
+                </div>
+                
+                <div class="spots-grid-container">
+                    <div v-for="spot in parkingLot.spots" :key="spot.id"
+                        class="parking-spot"
+                        :class="{'occupied': spot.is_occupied, 'available': !spot.is_occupied}"
+                        :title="`Spot ${spot.spot_number} - ${spot.is_occupied ? 'Occupied' : 'Available'}`"
+                    >
+                        <span class="spot-number">{{ spot.spot_number }}</span>
+                        <i class="bi" :class="spot.is_occupied ? 'bi-car-front-fill' : ''"></i>
+                    </div>
+                </div>
+            </BaseCard>
+        </div>
+    </AppLayout>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { isAdmin as checkIsAdmin } from '../utils/auth.js'
+import AppLayout from '../components/layout/AppLayout.vue'
+import BaseCard from '../components/common/BaseCard.vue'
+import BaseBadge from '../components/common/BaseBadge.vue'
+import { API_BASE_URL } from '@/config'
 
 const router = useRouter()
 const route = useRoute()
@@ -139,6 +153,12 @@ const error = ref('')
 const parkingLot = ref(null)
 
 const isAdmin = computed(() => checkIsAdmin())
+
+const getOccupancyClass = (rate) => {
+    if (rate < 50) return 'bg-success'
+    if (rate < 80) return 'bg-warning'
+    return 'bg-danger'
+}
 
 const fetchParkingLotDetails = async () => {
     try {
@@ -152,16 +172,15 @@ const fetchParkingLotDetails = async () => {
         }
 
         const lotId = route.params.id
-        // Use different API endpoints based on user role
         const apiEndpoint = isAdmin.value
-            ? `/api/v1/admin/parking-lots/${lotId}/spots`
-            : `/api/v1/parking-lots/${lotId}`
+            ? `/admin/parking-lots/${lotId}/spots`
+            : `/parking-lots/${lotId}`
 
-        const response = await fetch(`http://127.0.0.1:5000${apiEndpoint}`, {
+        const response = await fetch(`${API_BASE_URL}${apiEndpoint}`, {
             method: 'GET',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                "Authentication-Token": token,
             }
         })
 
@@ -172,7 +191,7 @@ const fetchParkingLotDetails = async () => {
                 spots: data.spots,
                 occupied_spots: data.spots.filter(spot => spot.is_occupied).length,
                 available_spots: data.spots.filter(spot => !spot.is_occupied).length,
-                occupancy_rate: (data.spots.filter(spot => spot.is_occupied).length / data.parking_lot.capacity * 100)
+                occupancy_rate: data.parking_lot.capacity > 0 ? (data.spots.filter(spot => spot.is_occupied).length / data.parking_lot.capacity * 100) : 0
             }
         } else {
             const errorData = await response.json()
@@ -190,322 +209,68 @@ const fetchParkingLotDetails = async () => {
     }
 }
 
-const logout = () => {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('userEmail')
-    router.push('/login')
-}
-
 onMounted(() => {
     fetchParkingLotDetails()
 })
 </script>
 
 <style scoped>
-.parking-lot-details {
-    min-height: 100vh;
-    background-color: #f8f9fa;
-}
-
-.navbar {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.nav-brand h3 {
-    margin: 0;
-    font-size: 1.5rem;
-}
-
-.nav-links {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.nav-link {
-    color: white;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
+.spot-legend {
+    width: 24px;
+    height: 24px;
     border-radius: 4px;
-    transition: background-color 0.3s;
+}
+.spot-legend.available {
+    background-color: #28a745; /* Success */
+    border: 1px solid #1e7e34;
+}
+.spot-legend.occupied {
+    background-color: #dc3545; /* Danger */
+    border: 1px solid #bd2130;
 }
 
-.nav-link:hover,
-.nav-link.router-link-active {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-.content {
-    padding: 2rem;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.loading,
-.error-message {
-    text-align: center;
-    padding: 2rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-}
-
-.error-message {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.details-container {
-    background: white;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.details-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 2px solid #e9ecef;
-}
-
-.header-info h1 {
-    margin: 0 0 0.5rem 0;
-    color: #2c3e50;
-    font-size: 2rem;
-}
-
-.location {
-    color: #6c757d;
-    font-size: 1.1rem;
-    font-style: italic;
-    margin: 0;
-}
-
-.summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.summary-card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    padding: 1.5rem;
-    border-radius: 12px;
-    border: 1px solid #e9ecef;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.summary-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-}
-
-.card-icon {
-    font-size: 2rem;
-    width: 60px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-}
-
-.capacity-icon {
-    background: #e3f2fd;
-}
-
-.available-icon {
-    background: #e8f5e8;
-}
-
-.occupied-icon {
-    background: #ffebee;
-}
-
-.price-icon {
-    background: #fff3e0;
-}
-
-.card-content h3 {
-    margin: 0 0 0.5rem 0;
-    color: #495057;
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.card-value {
-    margin: 0;
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: #2c3e50;
-}
-
-.card-value.available {
-    color: #28a745;
-}
-
-.card-value.occupied {
-    color: #dc3545;
-}
-
-.card-value.price {
-    color: #667eea;
-}
-
-.card-label {
-    color: #6c757d;
-    font-size: 0.85rem;
-}
-
-.occupancy-section {
-    margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
-.occupancy-section h2 {
-    margin: 0 0 1rem 0;
-    color: #2c3e50;
-}
-
-.occupancy-bar-large {
-    width: 100%;
-    height: 20px;
-    background: #e9ecef;
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 1rem;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.occupancy-fill-large {
-    height: 100%;
-    background: linear-gradient(90deg, #28a745 0%, #ffc107 60%, #fd7e14 80%, #dc3545 100%);
-    transition: width 0.5s ease;
-    border-radius: 10px;
-}
-
-.occupancy-text {
-    text-align: center;
-    color: #495057;
-    font-weight: 600;
-    margin: 0;
-}
-
-.spots-section h2 {
-    margin: 0 0 1rem 0;
-    color: #2c3e50;
-}
-
-.spots-legend {
-    display: flex;
-    gap: 2rem;
-    margin-bottom: 1.5rem;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.spot-indicator {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    border: 2px solid #dee2e6;
-}
-
-.spot-indicator.available {
-    background: #28a745;
-    border-color: #1e7e34;
-}
-
-.spot-indicator.occupied {
-    background: #dc3545;
-    border-color: #bd2130;
-}
-
-.spots-grid {
+.spots-grid-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-    gap: 0.75rem;
-    max-height: 600px;
-    overflow-y: auto;
+    gap: 1rem;
     padding: 1rem;
-    background: #f8f9fa;
+    background-color: #f8f9fa;
     border-radius: 8px;
-    border: 1px solid #e9ecef;
+    max-height: 500px;
+    overflow-y: auto;
 }
 
-.spot {
-    width: 80px;
-    height: 60px;
-    background: #28a745;
-    border: 2px solid #1e7e34;
-    border-radius: 6px;
+.parking-spot {
+    aspect-ratio: 4/3;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.spot:hover {
-    transform: scale(1.05);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.spot.occupied {
-    background: #dc3545;
-    border-color: #bd2130;
-}
-
-.btn {
-    padding: 0.75rem 1.5rem;
-    border: none;
     border-radius: 6px;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: default;
+    transition: transform 0.2s;
+    border-width: 2px;
+    border-style: solid;
 }
 
-.btn-secondary {
-    background: #6c757d;
-    color: white;
+.parking-spot:hover {
+    transform: scale(1.05);
 }
 
-.btn-logout {
-    background: #dc3545;
-    color: white;
+.parking-spot.available {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border-color: #badbcc;
 }
 
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+.parking-spot.occupied {
+    background-color: #f8d7da;
+    color: #842029;
+    border-color: #f5c2c7;
+}
+
+.spot-number {
+    font-size: 1.1rem;
 }
 </style>

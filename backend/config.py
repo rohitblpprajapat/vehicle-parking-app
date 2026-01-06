@@ -2,9 +2,9 @@ import os
 import secrets
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_urlsafe(32)
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-fixed-for-stability'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'
-    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT') or str(secrets.SystemRandom().getrandbits(128))
+    SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT') or 'dev-password-salt-fixed'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Redis Configuration
@@ -60,8 +60,21 @@ class Config:
     SECURITY_CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "Authentication-Token"]
     
     # Session settings
-    REMEMBER_COOKIE_SAMESITE = "strict"
-    SESSION_COOKIE_SAMESITE = "strict"
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = False # Set to True in production
+    
+    # Enable session support for API
+    SECURITY_TOKEN_AUTHENTICATION_HEADER = 'Authentication-Token' # Keep for backward compat if needed, or remove
+    WTF_CSRF_ENABLED = False # Keeping False based on request, but careful with cookies. 
+    # ideally we should enable CSRF for cookies, but for this specific request "solve token issues", converting to HttpOnly is the priority. 
+    # Using SameSite=Lax provides decent CSRF protection for top-level navigations, but for API calls from JS, we rely on CORS.
+    # Flask-Security's login_user will set the session cookie.
+    
+    # CORS settings - Crucial for cookies
+    # origins must be specific for credentials=True
+
     
     # JWT for token-based auth
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or secrets.token_urlsafe(32)

@@ -1,7 +1,8 @@
 // Authentication utility functions
 
 export function isAuthenticated() {
-    return !!localStorage.getItem('authToken')
+    // Check if we have a login flag (assuming session cookie exists)
+    return !!localStorage.getItem('isLoggedIn')
 }
 
 export function getUserRoles() {
@@ -23,12 +24,21 @@ export function getUserInfo() {
         email: localStorage.getItem('userEmail'),
         name: localStorage.getItem('userName'),
         roles: getUserRoles(),
-        token: localStorage.getItem('authToken')
+        // Token is no longer accessible via JS (HttpOnly Cookie)
+        token: null
     }
 }
 
+export function setSession(user) {
+    localStorage.setItem('isLoggedIn', 'true')
+    localStorage.setItem('userEmail', user.email)
+    localStorage.setItem('userName', user.name)
+    localStorage.setItem('userRoles', JSON.stringify(user.roles))
+}
+
 export function logout() {
-    localStorage.removeItem('authToken')
+    localStorage.removeItem('isLoggedIn')
+    localStorage.removeItem('authToken') // Clean up old token if present
     localStorage.removeItem('userEmail')
     localStorage.removeItem('userName')
     localStorage.removeItem('userRoles')

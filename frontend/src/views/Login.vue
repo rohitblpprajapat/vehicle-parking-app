@@ -1,70 +1,116 @@
 <template>
-    <div class="login-page">
-        <div class="login-container">
-            <div class="login-card">
-                <div class="tab-container">
-                    <div class="tabs">
-                        <button :class="['tab', { active: activeTab === 'login' }]" @click="activeTab = 'login'">
-                            Login
-                        </button>
-                        <button :class="['tab', { active: activeTab === 'register' }]" @click="activeTab = 'register'">
-                            Register
-                        </button>
-                    </div>
+    <div class="login-page d-flex align-items-center justify-content-center bg-light min-vh-100">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6 col-lg-5">
+                    <BaseCard class="shadow-lg border-0">
+                        <template #header>
+                             <ul class="nav nav-tabs card-header-tabs w-100 justify-content-center border-bottom-0">
+                                <li class="nav-item w-50 text-center">
+                                    <a :class="['nav-link', { active: activeTab === 'login' }]" 
+                                       href="#" 
+                                       @click.prevent="activeTab = 'login'">Login</a>
+                                </li>
+                                <li class="nav-item w-50 text-center">
+                                    <a :class="['nav-link', { active: activeTab === 'register' }]" 
+                                       href="#" 
+                                       @click.prevent="activeTab = 'register'">Register</a>
+                                </li>
+                            </ul>
+                        </template>
 
-                    <!-- Login Form -->
-                    <div v-if="activeTab === 'login'" class="form-container">
-                        <h2>Login</h2>
-                        <form @submit.prevent="handleLogin" class="auth-form">
-                            <div class="form-group">
-                                <label for="email">Email:</label>
-                                <input type="email" id="email" v-model="loginForm.email" required :disabled="loading"
-                                    placeholder="Enter your email" />
-                            </div>
-                            <div class="form-group">
-                                <label for="password">Password:</label>
-                                <input type="password" id="password" v-model="loginForm.password" required
-                                    :disabled="loading" placeholder="Enter your password" />
-                            </div>
-                            <button type="submit" :disabled="loading" class="auth-button">
-                                {{ loading ? 'Logging in...' : 'Login' }}
-                            </button>
-                        </form>
-                    </div>
+                        <div class="p-3">
+                            <!-- Login Form -->
+                            <form v-if="activeTab === 'login'" @submit.prevent="handleLogin">
+                                <h3 class="text-center mb-4">Welcome Back</h3>
+                                
+                                <BaseInput 
+                                    id="email" 
+                                    label="Email Address" 
+                                    type="email" 
+                                    v-model="loginForm.email" 
+                                    required 
+                                    placeholder="name@example.com"
+                                />
 
-                    <!-- Register Form -->
-                    <div v-else class="form-container">
-                        <h2>Register</h2>
-                        <form @submit.prevent="handleRegister" class="auth-form">
-                            <div class="form-group">
-                                <label for="reg-name">Full Name:</label>
-                                <input type="text" id="reg-name" v-model="registerForm.name" required
-                                    :disabled="loading" placeholder="Enter your full name" />
-                            </div>
-                            <div class="form-group">
-                                <label for="reg-email">Email:</label>
-                                <input type="email" id="reg-email" v-model="registerForm.email" required
-                                    :disabled="loading" placeholder="Enter your email" />
-                            </div>
-                            <div class="form-group">
-                                <label for="reg-password">Password:</label>
-                                <input type="password" id="reg-password" v-model="registerForm.password" required
-                                    :disabled="loading" placeholder="Choose a password" />
-                            </div>
-                            <div class="form-group">
-                                <label for="confirm-password">Confirm Password:</label>
-                                <input type="password" id="confirm-password" v-model="registerForm.confirmPassword"
-                                    required :disabled="loading" placeholder="Confirm your password" />
-                            </div>
-                            <button type="submit" :disabled="loading" class="auth-button">
-                                {{ loading ? 'Registering...' : 'Register' }}
-                            </button>
-                        </form>
-                    </div>
+                                <BaseInput 
+                                    id="password" 
+                                    label="Password" 
+                                    type="password" 
+                                    v-model="loginForm.password" 
+                                    required 
+                                    placeholder="Enter your password"
+                                />
 
-                    <div v-if="message" :class="['message', messageType]">
-                        {{ message }}
-                    </div>
+                                <BaseButton 
+                                    type="submit" 
+                                    variant="primary" 
+                                    size="lg" 
+                                    block 
+                                    :loading="loading"
+                                    class="mt-4"
+                                >
+                                    Login
+                                </BaseButton>
+                            </form>
+
+                            <!-- Register Form -->
+                            <form v-else @submit.prevent="handleRegister">
+                                <h3 class="text-center mb-4">Create Account</h3>
+
+                                <BaseInput 
+                                    id="reg-name" 
+                                    label="Full Name" 
+                                    type="text" 
+                                    v-model="registerForm.name" 
+                                    required 
+                                    placeholder="John Doe"
+                                />
+
+                                <BaseInput 
+                                    id="reg-email" 
+                                    label="Email Address" 
+                                    type="email" 
+                                    v-model="registerForm.email" 
+                                    required 
+                                    placeholder="name@example.com"
+                                />
+
+                                <BaseInput 
+                                    id="reg-password" 
+                                    label="Password" 
+                                    type="password" 
+                                    v-model="registerForm.password" 
+                                    required 
+                                    placeholder="Choose a password (min 6 chars)"
+                                />
+
+                                <BaseInput 
+                                    id="confirm-password" 
+                                    label="Confirm Password" 
+                                    type="password" 
+                                    v-model="registerForm.confirmPassword" 
+                                    required 
+                                    placeholder="Confirm your password"
+                                />
+
+                                <BaseButton 
+                                    type="submit" 
+                                    variant="success" 
+                                    size="lg" 
+                                    block 
+                                    :loading="loading"
+                                    class="mt-4"
+                                >
+                                    Register
+                                </BaseButton>
+                            </form>
+
+                            <div v-if="message" :class="['alert mt-4 text-center', messageType === 'error' ? 'alert-danger' : 'alert-success']" role="alert">
+                                {{ message }}
+                            </div>
+                        </div>
+                    </BaseCard>
                 </div>
             </div>
         </div>
@@ -74,6 +120,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import BaseCard from '../components/common/BaseCard.vue'
+import BaseInput from '../components/common/BaseInput.vue'
+import BaseButton from '../components/common/BaseButton.vue'
+import { API_BASE_URL } from '@/config'
+import { setSession } from '../utils/auth.js'
 
 const router = useRouter()
 
@@ -106,8 +157,9 @@ const handleLogin = async () => {
     message.value = ''
 
     try {
-        const response = await fetch('http://127.0.0.1:5000/api/v1/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -120,11 +172,8 @@ const handleLogin = async () => {
         const data = await response.json()
 
         if (response.ok) {
-            // Store the token and user info
-            localStorage.setItem('authToken', data.response.user.authentication_token)
-            localStorage.setItem('userEmail', data.response.user.email)
-            localStorage.setItem('userName', data.response.user.name)
-            localStorage.setItem('userRoles', JSON.stringify(data.response.user.roles))
+            // Store the session info (token is now HttpOnly cookie)
+            setSession(data.response.user)
 
             showMessage('Login successful!', 'success')
 
@@ -169,8 +218,9 @@ const handleRegister = async () => {
     message.value = ''
 
     try {
-        const response = await fetch('http://127.0.0.1:5000/api/v1/auth/register', {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -224,152 +274,14 @@ const showMessage = (msg, type) => {
 </script>
 
 <style scoped>
-.login-page {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-
-.login-container {
-    width: 100%;
-    max-width: 450px;
-}
-
-.login-card {
-    background: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-}
-
-.tab-container {
-    width: 100%;
-}
-
-.tabs {
-    display: flex;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid #eee;
-}
-
-.tab {
-    flex: 1;
-    padding: 12px 20px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    color: #666;
-    border-bottom: 2px solid transparent;
-    transition: all 0.3s ease;
-}
-
-.tab:hover {
-    color: #667eea;
-}
-
-.tab.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
-    font-weight: 600;
-}
-
-.form-container {
-    text-align: center;
-}
-
-.form-container h2 {
-    margin-bottom: 1.5rem;
-    color: #333;
-    font-size: 1.8rem;
-}
-
-.auth-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.form-group {
-    text-align: left;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: #333;
+.nav-link {
     font-weight: 500;
+    color: #6c757d;
 }
-
-.form-group input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
-    box-sizing: border-box;
-}
-
-.form-group input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
-}
-
-.form-group input:disabled {
-    background-color: #f5f5f5;
-    cursor: not-allowed;
-}
-
-.auth-button {
-    padding: 12px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 16px;
+.nav-link.active {
+    color: #0d6efd;
     font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    margin-top: 1rem;
-}
-
-.auth-button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.auth-button:active {
-    transform: translateY(0);
-}
-
-.auth-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.message {
-    margin-top: 1rem;
-    padding: 12px;
-    border-radius: 6px;
-    text-align: center;
-    font-weight: 500;
-}
-
-.message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background-color: transparent;
+    border-bottom: 3px solid #0d6efd !important;
 }
 </style>

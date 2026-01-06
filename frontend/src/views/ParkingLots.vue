@@ -1,184 +1,197 @@
 <template>
-    <div class="parking-lots">
-        <nav class="navbar">
-            <div class="nav-brand">
-                <h3>Find Parking</h3>
-            </div>
-            <div class="nav-links">
-                <router-link to="/dashboard" class="nav-link">Dashboard</router-link>
-                <router-link to="/parking-lots" class="nav-link">Find Parking</router-link>
-                <router-link to="/reservations" class="nav-link">My Reservations</router-link>
-                <router-link to="/profile" class="nav-link">Profile</router-link>
-                <button @click="logout" class="btn btn-logout">Logout</button>
-            </div>
-        </nav>
-
-        <main class="content">
-            <div class="container">
-                <div class="header">
-                    <h1>Available Parking Lots</h1>
-                    <div class="header-stats">
-                        <div class="stat-item">
-                            <span class="stat-number">{{ totalAvailableSpots }}</span>
-                            <span class="stat-label">Available Spots</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-number">{{ parkingLots.length }}</span>
-                            <span class="stat-label">Parking Lots</span>
-                        </div>
+    <AppLayout>
+        <div class="parking-lots">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Available Parking Lots</h1>
+                <div class="d-flex gap-3">
+                    <div class="text-end">
+                        <div class="h4 mb-0 text-success fw-bold">{{ totalAvailableSpots }}</div>
+                        <div class="small text-muted text-uppercase">Available Spots</div>
+                    </div>
+                    <div class="vr"></div>
+                    <div class="text-end">
+                        <div class="h4 mb-0 text-primary fw-bold">{{ parkingLots.length }}</div>
+                        <div class="small text-muted text-uppercase">Locations</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Loading State -->
-                <div v-if="loading" class="loading">
-                    Loading parking lots...
+            <!-- Messages -->
+            <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
+            <div v-if="successMessage" class="alert alert-success" role="alert">{{ successMessage }}</div>
+
+            <!-- Loading -->
+            <div v-if="loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
+            </div>
 
-                <!-- Error State -->
-                <div v-if="error" class="error-message">
-                    {{ error }}
-                </div>
-
-                <!-- Success Message -->
-                <div v-if="successMessage" class="success-message">
-                    {{ successMessage }}
-                </div>
-
+            <div v-else>
                 <!-- Filters -->
-                <div class="filters">
-                    <input v-model="searchQuery" type="text" placeholder="Search by name or location..."
-                        class="search-input">
-                    <select v-model="locationFilter" class="location-filter">
-                        <option value="">All Locations</option>
-                        <option v-for="location in uniqueLocations" :key="location" :value="location">
-                            {{ location }}
-                        </option>
-                    </select>
-                    <select v-model="sortBy" class="sort-filter">
-                        <option value="name">Sort by Name</option>
-                        <option value="price">Sort by Price</option>
-                        <option value="availability">Sort by Availability</option>
-                        <option value="distance">Sort by Distance</option>
-                    </select>
-                </div>
-
-                <!-- Parking Lots Grid -->
-                <div v-if="!loading && !error" class="lots-grid">
-                    <div v-for="lot in filteredAndSortedLots" :key="lot.id" class="lot-card">
-                        <div class="lot-header">
-                            <h3>{{ lot.name }}</h3>
-                            <div class="lot-badges">
-                                <span :class="['availability-badge', getAvailabilityClass(lot)]">
-                                    {{ lot.available_spots }}/{{ lot.capacity }} available
-                                </span>
-                                <span class="price-badge">${{ lot.price_per_hour }}/hr</span>
-                            </div>
+                <BaseCard class="mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <BaseInput
+                                id="search"
+                                v-model="searchQuery"
+                                placeholder="Search by name or location..."
+                                class="mb-0"
+                            />
                         </div>
+                        <div class="col-md-3">
+                            <select class="form-select border-0 bg-light" v-model="locationFilter">
+                                <option value="">All Locations</option>
+                                <option v-for="location in uniqueLocations" :key="location" :value="location">
+                                    {{ location }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select border-0 bg-light" v-model="sortBy">
+                                <option value="name">Sort by Name</option>
+                                <option value="price">Sort by Price</option>
+                                <option value="availability">Sort by Availability</option>
+                            </select>
+                        </div>
+                    </div>
+                </BaseCard>
 
-                        <div class="lot-info">
-                            <p class="location">📍 {{ lot.location }}</p>
-                            <div class="occupancy-display">
-                                <div class="occupancy-bar">
-                                    <div class="occupancy-fill" :style="{ width: (lot.occupancy_rate || 0) + '%' }">
-                                    </div>
+                <!-- Grid -->
+                <div v-if="filteredAndSortedLots.length > 0" class="row g-4">
+                    <div v-for="lot in filteredAndSortedLots" :key="lot.id" class="col-md-6 col-lg-4">
+                        <BaseCard class="h-100">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">{{ lot.name }}</h5>
+                                <BaseBadge :variant="getAvailabilityVariant(lot)">
+                                    {{ lot.available_spots }}/{{ lot.capacity }} Left
+                                </BaseBadge>
+                            </div>
+                            
+                            <p class="text-muted small mb-3">📍 {{ lot.location }}</p>
+
+                            <div class="mb-3">
+                                <div class="progress" style="height: 8px;">
+                                    <div 
+                                        class="progress-bar" 
+                                        role="progressbar" 
+                                        :style="{ width: (lot.occupancy_rate || 0) + '%' }"
+                                        :class="getProgressBarClass(lot)"
+                                    ></div>
                                 </div>
-                                <span class="occupancy-text">{{ (lot.occupancy_rate || 0).toFixed(1) }}% occupied</span>
-                            </div>
-                        </div>
+                                <div class="d-flex justify-content-between mt-1 text-muted small">
+                                    <span>{{ (lot.occupancy_rate || 0).toFixed(0) }}% Occupied</span>
+                                    <span>{{ $currency(lot.price_per_hour) }}/hr</span>
 
-                        <div class="lot-stats">
-                            <div class="stat">
-                                <span class="stat-value">{{ lot.capacity }}</span>
-                                <span class="stat-label">Total Spots</span>
+                                </div>
                             </div>
-                            <div class="stat">
-                                <span class="stat-value">{{ lot.available_spots }}</span>
-                                <span class="stat-label">Available</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-value">{{ lot.occupied_spots }}</span>
-                                <span class="stat-label">Occupied</span>
-                            </div>
-                        </div>
 
-                        <div class="lot-actions">
-                            <button @click="viewLotDetails(lot)" class="btn btn-secondary">
-                                View Layout
-                            </button>
-                            <button @click="quickReserve(lot)"
-                                :disabled="lot.available_spots === 0 || hasActiveReservationInLot(lot.id) || reserving === lot.id"
-                                class="btn btn-primary">
-                                <span v-if="reserving === lot.id">Reserving...</span>
-                                <span v-else-if="lot.available_spots === 0">Full</span>
-                                <span v-else-if="hasActiveReservationInLot(lot.id)">Already Reserved</span>
-                                <span v-else>Reserve Now</span>
-                            </button>
-                        </div>
+                            <div class="d-flex gap-2 mt-auto">
+                                <router-link :to="`/parking-lots/${lot.id}`" class="btn btn-outline-secondary btn-sm flex-fill">
+                                    Layout
+                                </router-link>
+                                <BaseButton 
+                                    variant="primary" 
+                                    size="sm" 
+                                    class="flex-fill"
+                                    @click="quickReserve(lot)"
+                                    :disabled="lot.available_spots === 0 || hasActiveReservationInLot(lot.id) || reserving === lot.id"
+                                >
+                                    {{ reserving === lot.id ? '...' : lot.available_spots === 0 ? 'Full' : hasActiveReservationInLot(lot.id) ? 'Reserved' : 'Reserve' }}
+                                </BaseButton>
+                            </div>
+                        </BaseCard>
                     </div>
                 </div>
 
                 <!-- Empty State -->
-                <div v-if="!loading && !error && filteredAndSortedLots.length === 0" class="empty-state">
-                    <div class="empty-icon">🅿️</div>
+                <div v-else class="text-center py-5">
+                    <div class="fs-1 mb-3">🅿️</div>
                     <h3>No parking lots found</h3>
-                    <p>Try adjusting your search criteria or filters.</p>
-                </div>
-
-                <!-- Reservation Duration Modal -->
-                <div v-if="showReservationModal" class="modal-overlay" @click="closeReservationModal">
-                    <div class="modal" @click.stop>
-                        <div class="modal-header">
-                            <h2>Reserve Spot - {{ selectedLot?.name }}</h2>
-                            <button @click="closeReservationModal" class="close-btn">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="reservation-form">
-                                <div class="form-group">
-                                    <label>Duration (hours):</label>
-                                    <div class="duration-options">
-                                        <button v-for="duration in durationOptions" :key="duration.value"
-                                            @click="selectedDuration = duration.value"
-                                            :class="['duration-btn', { active: selectedDuration === duration.value }]">
-                                            {{ duration.label }}
-                                        </button>
-                                    </div>
-                                    <input v-model.number="selectedDuration" type="number" min="0.5" max="24" step="0.5"
-                                        class="custom-duration" placeholder="Custom hours">
-                                </div>
-                                <div class="cost-calculation">
-                                    <div class="cost-row">
-                                        <span>Duration:</span>
-                                        <span>{{ selectedDuration }} hours</span>
-                                    </div>
-                                    <div class="cost-row">
-                                        <span>Rate:</span>
-                                        <span>${{ selectedLot?.price_per_hour }}/hour</span>
-                                    </div>
-                                    <div class="cost-row total">
-                                        <span>Total Cost:</span>
-                                        <span>${{ (selectedDuration * (selectedLot?.price_per_hour || 0)).toFixed(2)
-                                            }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button @click="closeReservationModal" class="btn btn-secondary">Cancel</button>
-                            <button @click="confirmReservation" class="btn btn-primary" :disabled="reserving">
-                                {{ reserving ? 'Reserving...' : 'Confirm Reservation' }}
-                            </button>
-                        </div>
-                    </div>
+                    <p class="text-muted">Try adjusting your search criteria</p>
                 </div>
             </div>
-        </main>
-    </div>
+
+            <!-- Reservation Modal -->
+            <BaseModal v-if="showReservationModal" :title="`Reserve Spot - ${selectedLot?.name}`" @close="closeReservationModal">
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Duration</label>
+                    <div class="d-grid gap-2 d-md-flex mb-3">
+                        <button 
+                            v-for="duration in durationOptions" 
+                            :key="duration.value"
+                            @click="selectedDuration = duration.value"
+                            :class="['btn', 'btn-sm', selectedDuration === duration.value ? 'btn-success' : 'btn-outline-secondary']"
+                        >
+                            {{ duration.label }}
+                        </button>
+                    </div>
+                    <BaseInput
+                        id="custom-duration"
+                        type="number"
+                        v-model.number="selectedDuration"
+                        min="0.5"
+                        max="24"
+                        step="0.5"
+                        label="Custom Hours"
+                    />
+                </div>
+
+                <div class="bg-light p-3 rounded mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Rate:</span>
+                        <span class="fw-bold">{{ $currency(selectedLot?.price_per_hour) }}/hr</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <BaseInput
+                            id="vehicle-number"
+                            v-model="vehicleNumber"
+                            label="Vehicle Number"
+                            placeholder="Enter vehicle registration number"
+                            required
+                        />
+                    </div>
+
+                    <div class="d-flex justify-content-between border-top pt-2">
+                        <span class="fw-bold">Total Cost:</span>
+                        <span class="fw-bold text-success fs-5">
+                            {{ $currency(selectedDuration * (selectedLot?.price_per_hour || 0)) }}
+
+                        </span>
+                    </div>
+                </div>
+
+                <template #footer>
+                    <BaseButton variant="secondary" @click="closeReservationModal">Cancel</BaseButton>
+                    <BaseButton variant="primary" @click="confirmReservation" :loading="!!reserving" :disabled="!!reserving || !vehicleNumber">
+                        Confirm Reservation
+                    </BaseButton>
+                </template>
+            </BaseModal>
+
+            <!-- Payment Modal -->
+            <PaymentModal
+                v-if="showPaymentModal"
+                :amount="estimatedCost"
+                @close="showPaymentModal = false"
+                @payment-success="handlePaymentSuccess"
+            />
+        </div>
+    </AppLayout>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { logout as authLogout } from '../utils/auth.js'
+import AppLayout from '../components/layout/AppLayout.vue'
+import BaseCard from '../components/common/BaseCard.vue'
+import BaseInput from '../components/common/BaseInput.vue'
+import BaseButton from '../components/common/BaseButton.vue'
+import BaseBadge from '../components/common/BaseBadge.vue'
+import BaseModal from '../components/common/BaseModal.vue'
+import PaymentModal from '../components/common/PaymentModal.vue'
+import { API_BASE_URL } from '@/config'
 
 const router = useRouter()
 const loading = ref(true)
@@ -192,15 +205,19 @@ const sortBy = ref('name')
 const showReservationModal = ref(false)
 const selectedLot = ref(null)
 const selectedDuration = ref(2)
+const vehicleNumber = ref('')
 const reserving = ref(null)
+const showPaymentModal = ref(false)
+const estimatedCost = ref(0)
+
 
 const durationOptions = [
-    { label: '30 min', value: 0.5 },
-    { label: '1 hour', value: 1 },
-    { label: '2 hours', value: 2 },
-    { label: '4 hours', value: 4 },
-    { label: '8 hours', value: 8 },
-    { label: '24 hours', value: 24 }
+    { label: '30m', value: 0.5 },
+    { label: '1h', value: 1 },
+    { label: '2h', value: 2 },
+    { label: '4h', value: 4 },
+    { label: '8h', value: 8 },
+    { label: '24h', value: 24 }
 ]
 
 // Computed properties
@@ -241,9 +258,6 @@ const filteredAndSortedLots = computed(() => {
                 return a.price_per_hour - b.price_per_hour
             case 'availability':
                 return b.available_spots - a.available_spots
-            case 'distance':
-                // For now, just sort by name as we don't have distance data
-                return a.name.localeCompare(b.name)
             default:
                 return a.name.localeCompare(b.name)
         }
@@ -259,11 +273,10 @@ const activeReservations = computed(() => {
 // Data fetching
 const fetchParkingLots = async () => {
     try {
-        const token = localStorage.getItem('authToken')
-        const response = await fetch('http://127.0.0.1:5000/api/v1/parking-lots', {
+        const response = await fetch(`${API_BASE_URL}/parking-lots`, {
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                "Authentication-Token": token,
             }
         })
 
@@ -286,11 +299,10 @@ const fetchParkingLots = async () => {
 
 const fetchUserReservations = async () => {
     try {
-        const token = localStorage.getItem('authToken')
-        const response = await fetch('http://127.0.0.1:5000/api/v1/reservations', {
+        const response = await fetch(`${API_BASE_URL}/reservations`, {
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                "Authentication-Token": token,
             }
         })
 
@@ -307,6 +319,7 @@ const fetchUserReservations = async () => {
 const quickReserve = (lot) => {
     if (hasActiveReservationInLot(lot.id)) {
         error.value = 'You already have an active reservation in this parking lot'
+        window.scrollTo(0, 0)
         return
     }
 
@@ -314,22 +327,50 @@ const quickReserve = (lot) => {
     showReservationModal.value = true
 }
 
-const confirmReservation = async () => {
+const confirmReservation = () => {
     if (!selectedLot.value) return
+    if (!vehicleNumber.value) {
+        error.value = 'Vehicle number is required'
+        return
+    }
+    
+    // Calculate cost
+    estimatedCost.value = selectedLot.value.price_per_hour * selectedDuration.value
+    
+    // Close reservation modal
+    showReservationModal.value = false
+    
+    // Open payment modal
+    showPaymentModal.value = true
+}
+
+const handlePaymentSuccess = async () => {
+    // Close payment modal
+    showPaymentModal.value = false
+    
+    // Original reservation logic
+    await finalizeReservation()
+}
+
+const finalizeReservation = async () => {
+    if (!selectedLot.value) return
+    if (!vehicleNumber.value) {
+        error.value = 'Vehicle number is required'
+        return
+    }
 
     try {
         reserving.value = selectedLot.value.id
-        const token = localStorage.getItem('authToken')
-
-        const response = await fetch('http://127.0.0.1:5000/api/v1/reservations', {
+        const response = await fetch(`${API_BASE_URL}/reservations`, {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                "Authentication-Token": token,
             },
             body: JSON.stringify({
                 lot_id: selectedLot.value.id,
-                duration_hours: selectedDuration.value
+                duration_hours: selectedDuration.value,
+                vehicle_number: vehicleNumber.value
             })
         })
 
@@ -357,10 +398,6 @@ const confirmReservation = async () => {
     }
 }
 
-const viewLotDetails = (lot) => {
-    router.push(`/parking-lots/${lot.id}`)
-}
-
 // Helper functions
 const hasActiveReservationInLot = (lotId) => {
     return activeReservations.value.some(res => {
@@ -369,23 +406,26 @@ const hasActiveReservationInLot = (lotId) => {
     })
 }
 
-const getAvailabilityClass = (lot) => {
+const getAvailabilityVariant = (lot) => {
     const percentage = (lot.available_spots / lot.capacity) * 100
-    if (percentage === 0) return 'full'
-    if (percentage <= 20) return 'low'
-    if (percentage <= 50) return 'medium'
-    return 'high'
+    if (percentage === 0) return 'secondary'
+    if (percentage <= 20) return 'danger'
+    if (percentage <= 50) return 'warning'
+    return 'success'
+}
+
+const getProgressBarClass = (lot) => {
+    const percentage = (lot.occupancy_rate)
+    if (percentage >= 100) return 'bg-danger'
+    if (percentage >= 80) return 'bg-warning'
+    return 'bg-success'
 }
 
 const closeReservationModal = () => {
     showReservationModal.value = false
     selectedLot.value = null
     selectedDuration.value = 2
-}
-
-const logout = () => {
-    authLogout()
-    router.push('/login')
+    vehicleNumber.value = ''
 }
 
 onMounted(async () => {
@@ -401,445 +441,5 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.parking-lots {
-    min-height: 100vh;
-    background-color: #f8f9fa;
-}
-
-.navbar {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.nav-brand h3 {
-    margin: 0;
-    font-size: 1.5rem;
-}
-
-.nav-links {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.nav-link {
-    color: white;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    transition: background-color 0.3s;
-}
-
-.nav-link:hover,
-.nav-link.router-link-active {
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-.content {
-    padding: 2rem;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-}
-
-.header h1 {
-    margin: 0;
-    color: #333;
-}
-
-.header-stats {
-    display: flex;
-    gap: 2rem;
-}
-
-.stat-item {
-    text-align: center;
-}
-
-.stat-number {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #28a745;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.85rem;
-    color: #6c757d;
-    text-transform: uppercase;
-}
-
-.loading,
-.error-message,
-.success-message {
-    text-align: center;
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-}
-
-.error-message {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.success-message {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.filters {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-}
-
-.search-input,
-.location-filter,
-.sort-filter {
-    padding: 0.75rem;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    min-width: 200px;
-}
-
-.lots-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 1.5rem;
-}
-
-.lot-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e9ecef;
-    transition: all 0.3s ease;
-}
-
-.lot-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.lot-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
-
-.lot-header h3 {
-    margin: 0;
-    color: #333;
-    font-size: 1.2rem;
-}
-
-.lot-badges {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-end;
-}
-
-.availability-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.availability-badge.high {
-    background: #d4edda;
-    color: #155724;
-}
-
-.availability-badge.medium {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.availability-badge.low {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.availability-badge.full {
-    background: #d1ecf1;
-    color: #0c5460;
-}
-
-.price-badge {
-    background: #28a745;
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.lot-info {
-    margin-bottom: 1rem;
-}
-
-.location {
-    color: #6c757d;
-    margin: 0 0 1rem 0;
-    font-size: 0.9rem;
-}
-
-.occupancy-display {
-    margin-bottom: 1rem;
-}
-
-.occupancy-bar {
-    width: 100%;
-    height: 8px;
-    background: #e9ecef;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 0.5rem;
-}
-
-.occupancy-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #28a745 0%, #ffc107 60%, #dc3545 100%);
-    transition: width 0.3s ease;
-}
-
-.occupancy-text {
-    font-size: 0.8rem;
-    color: #6c757d;
-}
-
-.lot-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    margin-bottom: 1rem;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-
-.stat {
-    text-align: center;
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #333;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.75rem;
-    color: #6c757d;
-    text-transform: uppercase;
-}
-
-.lot-actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 3rem;
-    color: #6c757d;
-}
-
-.empty-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-}
-
-/* Modal Styles */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal {
-    background: white;
-    border-radius: 12px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.modal-header h2 {
-    margin: 0;
-    color: #333;
-}
-
-.close-btn {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #6c757d;
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.reservation-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-    color: #333;
-}
-
-.duration-options {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.duration-btn {
-    padding: 0.75rem;
-    border: 2px solid #e9ecef;
-    background: white;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.duration-btn:hover {
-    border-color: #28a745;
-}
-
-.duration-btn.active {
-    background: #28a745;
-    color: white;
-    border-color: #28a745;
-}
-
-.custom-duration {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    font-size: 0.9rem;
-}
-
-.cost-calculation {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-}
-
-.cost-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-}
-
-.cost-row.total {
-    border-top: 1px solid #dee2e6;
-    padding-top: 0.5rem;
-    margin-top: 0.5rem;
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: #28a745;
-}
-
-.modal-footer {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-    padding: 1.5rem;
-    border-top: 1px solid #e9ecef;
-}
-
-/* Buttons */
-.btn {
-    padding: 0.75rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
-    flex: 1;
-    text-align: center;
-}
-
-.btn-primary {
-    background: #28a745;
-    color: white;
-}
-
-.btn-secondary {
-    background: #6c757d;
-    color: white;
-}
-
-.btn-logout {
-    background: #dc3545;
-    color: white;
-}
-
-.btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
+/* Scoped styles can be minimal now, as we use Bootstrap classes */
 </style>

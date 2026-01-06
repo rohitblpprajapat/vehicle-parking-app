@@ -26,8 +26,8 @@ def create_initial_data():
     test_user = datastore.find_user(email='user@parking.com')
     if not test_user:
         test_user = datastore.create_user(
-            name='Test User',
-            username='testuser',
+            name='Ravi Sharma',
+            username='ravisharma',
             email='user@parking.com',
             password=hash_password('password123'),
             active=True
@@ -39,10 +39,10 @@ def create_initial_data():
     
     # Create parking lots if they don't exist
     parking_lots_data = [
-        {'name': 'Central Plaza Parking', 'location': 'Downtown', 'capacity': 100, 'price_per_hour': 8.0},
-        {'name': 'Mall Parking Garage', 'location': 'Shopping Mall', 'capacity': 200, 'price_per_hour': 5.0},
-        {'name': 'Business District Lot', 'location': 'Uptown', 'capacity': 80, 'price_per_hour': 12.0},
-        {'name': 'City Center Parking', 'location': 'Downtown', 'capacity': 150, 'price_per_hour': 10.0},
+        {'name': 'Connaught Place Parking', 'location': 'New Delhi', 'capacity': 100, 'price_per_hour': 50.0},
+        {'name': 'Phoenix Mall Parking', 'location': 'Mumbai', 'capacity': 200, 'price_per_hour': 30.0},
+        {'name': 'Cyber Hub Parking', 'location': 'Gurgaon', 'capacity': 80, 'price_per_hour': 80.0},
+        {'name': 'Brigade Road Parking', 'location': 'Bangalore', 'capacity': 150, 'price_per_hour': 60.0},
     ]
     
     for lot_data in parking_lots_data:

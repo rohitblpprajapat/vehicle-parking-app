@@ -1,5 +1,9 @@
 import os
 import secrets
+from dotenv import load_dotenv
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, '../.env'))
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-fixed-for-stability'
@@ -12,6 +16,20 @@ class Config:
     CACHE_TYPE = 'redis'
     CACHE_REDIS_URL = REDIS_URL
     CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes default
+    
+    # Celery Configuration
+    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or 'redis://localhost:6379/1'
+    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or 'redis://localhost:6379/1'
+    
+    # Flask-Mail Configuration (Dev: Console)
+    MAIL_SERVER = 'smtp.gmail.com'
+    MAIL_PORT = 587
+    MAIL_USE_TLS = True
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = 'noreply@vehicleparking.local'
+    MAIL_SUPPRESS_SEND = False 
     
     # Flask-Security settings
     SECURITY_REGISTERABLE = True

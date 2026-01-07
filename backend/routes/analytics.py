@@ -3,6 +3,7 @@ from flask_security import auth_required, roles_required, current_user
 from models import Reservation, Parking_lot, User, ParkingSpot, db
 from datetime import datetime, timedelta
 from utils import get_ist_now
+from redis_cache import cached, CacheConfig
 import statistics
 
 import csv
@@ -124,6 +125,7 @@ def get_admin_analytics_previous():
 
 @analytics_bp.route('/user/spending-summary', methods=['GET'])
 @auth_required('token', 'session')
+@cached(timeout=CacheConfig.USER_DATA_TIMEOUT, key_prefix=CacheConfig.USER_DATA_KEY)
 def get_user_spending_summary():
     """Get user's parking spending summary and statistics"""
     try:
@@ -187,7 +189,7 @@ def get_user_spending_summary():
             avg_late = late_minutes_total / len(reservations)
             punctuality_score = max(0, 100 - avg_late)
 
-        return jsonify({
+        return {
             'period': {'days': days, 'start_date': start_date.isoformat(), 'end_date': end_date.isoformat()},
             'summary': {
                 'total_reservations': len(reservations),
@@ -206,7 +208,7 @@ def get_user_spending_summary():
             'daily_usage': [{'day': k, 'visits': v} for k,v in daily_usage.items()],
             'previous_month_reservations': 0, 
             'recent_activity': [] 
-        }), 200
+        }
         
     except Exception as e:
         current_app.logger.error(f"Get spending summary error: {str(e)}")

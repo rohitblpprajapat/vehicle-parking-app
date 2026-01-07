@@ -174,68 +174,84 @@ def create_reservation():
             
         if not vehicle_number:
             return jsonify({'error': 'Vehicle number is required'}), 400
+            
+        # Acquiring distributed lock for this specific parking lot
+        lock_name = f"reservation:lot:{lot_id}"
+        lock_id = redis_cache.acquire_lock(lock_name, acquire_timeout=5, lock_timeout=10)
         
-        parking_lot = Parking_lot.query.get_or_404(lot_id)
-        
-        available_spot = ParkingSpot.query.filter_by(
-            lot_id=lot_id, 
-            is_occupied=False
-        ).filter(
-            ~ParkingSpot.reservations.any(Reservation.status == 'active')
-        ).first()
-        
-        if not available_spot:
-            return jsonify({'error': 'No available spots in this parking lot'}), 400
-        
-        existing_reservation = Reservation.query.filter_by(
-            user_id=current_user.id,
-            status='active'
-        ).join(ParkingSpot).filter_by(lot_id=lot_id).first()
-        
-        if existing_reservation:
-            return jsonify({'error': 'You already have an active reservation in this parking lot'}), 400
-        
-        start_time = get_ist_now()
-        end_time = start_time + timedelta(hours=duration_hours)
-        estimated_cost = parking_lot.price_per_hour * duration_hours
-        
-        reservation = Reservation(
-            user_id=current_user.id,
-            spot_id=available_spot.id,
-            start_time=start_time,
-            end_time=end_time,
-            status='active',
-            reserved_duration_hours=duration_hours,
-            estimated_cost=estimated_cost,
-            hourly_rate=parking_lot.price_per_hour,
-            vehicle_number=vehicle_number
-        )
-        
-        db.session.add(reservation)
-        db.session.commit()
-        
-        redis_cache.invalidate_pattern('parking-lots*')
-        redis_cache.invalidate_pattern('user-spending*')
-        redis_cache.invalidate_pattern('admin-analytics*')
-        
-        return jsonify({
-            'message': 'Spot reserved successfully',
-            'reservation': {
-                'id': reservation.id,
-                'parking_lot': parking_lot.name,
-                'spot_number': available_spot.spot_number,
-                'start_time': reservation.start_time.isoformat(),
-                'end_time': reservation.end_time.isoformat(),
-                'status': reservation.status,
-                'price_per_hour': parking_lot.price_per_hour,
-                'total_cost': parking_lot.price_per_hour * duration_hours,
-                'vehicle_number': reservation.vehicle_number
-            }
-        }), 201
-        
+        if not lock_id:
+            return jsonify({'error': 'System is busy processing other bookings for this lot. Please try again.'}), 409
+            
+        try:
+            parking_lot = Parking_lot.query.get_or_404(lot_id)
+            
+            # Double check available spots under lock
+            # Using write lock logic essentially
+            available_spot = ParkingSpot.query.filter_by(
+                lot_id=lot_id, 
+                is_occupied=False
+            ).filter(
+                ~ParkingSpot.reservations.any(Reservation.status == 'active')
+            ).first()
+            
+            if not available_spot:
+                return jsonify({'error': 'No available spots in this parking lot'}), 400
+            
+            existing_reservation = Reservation.query.filter_by(
+                user_id=current_user.id,
+                status='active'
+            ).join(ParkingSpot).filter_by(lot_id=lot_id).first()
+            
+            if existing_reservation:
+                return jsonify({'error': 'You already have an active reservation in this parking lot'}), 400
+            
+            start_time = get_ist_now()
+            end_time = start_time + timedelta(hours=duration_hours)
+            estimated_cost = parking_lot.price_per_hour * duration_hours
+            
+            reservation = Reservation(
+                user_id=current_user.id,
+                spot_id=available_spot.id,
+                start_time=start_time,
+                end_time=end_time,
+                status='active',
+                reserved_duration_hours=duration_hours,
+                estimated_cost=estimated_cost,
+                hourly_rate=parking_lot.price_per_hour,
+                vehicle_number=vehicle_number
+            )
+            
+            db.session.add(reservation)
+            db.session.commit()
+            
+            redis_cache.invalidate_pattern('parking-lots*')
+            redis_cache.invalidate_pattern('user-spending*')
+            redis_cache.invalidate_pattern('admin-analytics*')
+            
+            return jsonify({
+                'message': 'Spot reserved successfully',
+                'reservation': {
+                    'id': reservation.id,
+                    'parking_lot': parking_lot.name,
+                    'spot_number': available_spot.spot_number,
+                    'start_time': reservation.start_time.isoformat(),
+                    'end_time': reservation.end_time.isoformat(),
+                    'status': reservation.status,
+                    'price_per_hour': parking_lot.price_per_hour,
+                    'total_cost': parking_lot.price_per_hour * duration_hours,
+                    'vehicle_number': reservation.vehicle_number
+                }
+            }), 201
+            
+        finally:
+            redis_cache.release_lock(lock_name, lock_id)
+            
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Create reservation error: {str(e)}")
+        # Try to release lock if it exists (though finally block usually handles this, safety net)
+        if 'lock_name' in locals() and 'lock_id' in locals() and lock_id:
+             redis_cache.release_lock(lock_name, lock_id)
         return jsonify({'error': 'Failed to create reservation'}), 500
 
 @reservation_bp.route('/<int:reservation_id>/occupy', methods=['POST', 'PUT'])

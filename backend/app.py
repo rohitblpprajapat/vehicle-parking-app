@@ -23,6 +23,10 @@ def create_app():
     cache.init_app(app)
     redis_cache.init_app(app)
     
+    # Initialize Mail
+    from flask_mail import Mail
+    mail = Mail(app)
+    
     # Configure CORS with more permissive settings for development
     # Configure CORS with credentials support
     # Configure CORS - Simplification for Development

@@ -4,7 +4,6 @@ import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import current_app, request
-from flask_caching import Cache
 import hashlib
 
 # Setup logging
@@ -132,6 +131,68 @@ class RedisCache:
             logger.error(f"Error flushing cache: {str(e)}")
             return False
 
+    def acquire_lock(self, lock_name, acquire_timeout=10, lock_timeout=10):
+        """
+        Acquire a distributed lock
+        Args:
+            lock_name: Unique name for the lock
+            acquire_timeout: How long to wait to acquire the lock (seconds)
+            lock_timeout: How long the lock remains valid (seconds)
+        Returns:
+             identifier (str) if acquired, False otherwise
+        """
+        if not self.is_available():
+            return False
+            
+        identifier = str(datetime.now().timestamp())
+        lock_key = f"lock:{lock_name}"
+        end_time = datetime.now() + timedelta(seconds=acquire_timeout)
+        
+        while datetime.now() < end_time:
+            if self.redis_client.setnx(lock_key, identifier):
+                self.redis_client.expire(lock_key, lock_timeout)
+                return identifier
+            
+            # Check if lock is expired but not deleted (deadlock prevention)
+            if self.redis_client.ttl(lock_key) == -1:
+                self.redis_client.expire(lock_key, lock_timeout)
+                
+            import time
+            time.sleep(0.1)
+            
+        return False
+
+    def release_lock(self, lock_name, identifier):
+        """Release a distributed lock"""
+        if not self.is_available():
+            return False
+            
+        lock_key = f"lock:{lock_name}"
+        try:
+            # Use optimistic locking/watch to ensure we only release OUR lock
+            pipe = self.redis_client.pipeline(True)
+            while True:
+                try:
+                    pipe.watch(lock_key)
+                    lock_value = pipe.get(lock_key)
+                    
+                    if lock_value == identifier:
+                        pipe.multi()
+                        pipe.delete(lock_key)
+                        pipe.execute()
+                        return True
+                        
+                    pipe.unwatch()
+                    break
+                    
+                except redis.WatchError:
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error releasing lock: {e}")
+            
+        return False
+
 # Global cache instance
 cache = RedisCache()
 
@@ -250,6 +311,6 @@ class CacheConfig:
     ADMIN_ANALYTICS_KEY = "admin_analytics"
     LOT_DETAILS_KEY = "lot_details"
 
-# Create global cache instances
-cache = Cache()
+# Global cache instances
 redis_cache = RedisCache()
+cache = redis_cache

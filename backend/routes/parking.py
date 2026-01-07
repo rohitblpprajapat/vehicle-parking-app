@@ -14,13 +14,16 @@ def calculate_available_spots(lot):
                 available_count += 1
     return available_count
 
+from redis_cache import cached, CacheConfig
+
 @parking_bp.route('/parking-lots', methods=['GET'])
+@cached(timeout=CacheConfig.PARKING_LOTS_TIMEOUT, key_prefix=CacheConfig.PARKING_LOTS_KEY)
 def get_parking_lots():
     """Get all parking lots"""
     try:
         lots = Parking_lot.query.all()
         
-        return jsonify({
+        return {
             'parking_lots': [{
                 'id': lot.id,
                 'name': lot.name,
@@ -29,7 +32,7 @@ def get_parking_lots():
                 'price_per_hour': lot.price_per_hour,
                 'available_spots': calculate_available_spots(lot)
             } for lot in lots]
-        }), 200
+        }
         
     except Exception as e:
         current_app.logger.error(f"Get parking lots error: {str(e)}")

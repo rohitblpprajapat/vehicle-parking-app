@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: parking-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=sqlite:///app.db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      # Add mail config here if needed, or pass via .env file
+    volumes:
+      - ./backend:/app
+      - ./backend/instance:/app/instance
+    depends_on:
+      - redis
+
+  celery_worker:
+    build: ./backend
+    container_name: parking-celery
+    command: celery -A celery_worker.celery worker --loglevel=info
+    environment:
+      - DATABASE_URL=sqlite:///app.db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    volumes:
+      - ./backend:/app
+      - ./backend/instance:/app/instance
+    depends_on:
+      - backend
+      - redis
+
+  frontend:
+    build: ./frontend
+    container_name: parking-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+
+  redis:
+    image: redis:alpine
+    container_name: parking-redis
+    ports:
+      - "6379:6379"

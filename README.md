@@ -38,8 +38,10 @@ A comprehensive multi-user web application for managing parking lots, parking sp
 
 - **Flask**: Python web framework
 - **SQLAlchemy**: Database ORM
-- **Flask-Security**: Authentication and authorization
-- **Redis**: Caching and session management
+- **Flask-Security-Too**: Authentication and authorization
+- **Flask-Mail**: Email services
+- **Celery**: Background task queue
+- **Redis**: Caching, session management, and message broker
 - **SQLite**: Database (configurable to PostgreSQL/MySQL)
 
 ### Frontend
@@ -83,12 +85,26 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-#### Set up environment variables (optional):
+#### Set up environment variables:
+
+Create a `.env` file in the root `vehicle-parking-app` directory (or inside `backend/`). You can copy the example below:
 
 ```bash
-export SECRET_KEY="your-secret-key"
-export DATABASE_URL="sqlite:///app.db"  # or your preferred database
-export REDIS_URL="redis://localhost:6379/0"
+# Security
+SECRET_KEY="your-secret-key"
+SECURITY_PASSWORD_SALT="your-password-salt"
+
+# Database
+DATABASE_URL="sqlite:///app.db"
+
+# Redis & Celery
+REDIS_URL="redis://localhost:6379/0"
+CELERY_BROKER_URL="redis://localhost:6379/1"
+CELERY_RESULT_BACKEND="redis://localhost:6379/1"
+
+# Email (Optional - for reports)
+MAIL_USERNAME="your-email@gmail.com"
+MAIL_PASSWORD="your-app-password"
 ```
 
 #### Initialize the database:
@@ -133,7 +149,19 @@ brew services start redis
 **Windows:**
 Download and install from the official Redis website or use WSL.
 
-## 🏃‍♂️ Running the Application
+## 🐳 Docker Setup (Recommended)
+
+Run the entire application stack (Frontend, Backend, Redis, Celery) with a single command:
+
+```bash
+docker-compose up --build
+```
+- Access Frontend: `http://localhost:5173`
+- Access Backend: `http://localhost:5000`
+
+If you prefer manual setup, follow the steps below.
+
+## 🏃‍♂️ Manual Setup & Running
 
 ### 1. Start Redis (if not running as a service):
 
@@ -151,7 +179,17 @@ python app.py
 
 The backend will run on `http://localhost:5000`
 
-### 3. Start the Frontend:
+### 3. Start Celery Worker (Background Tasks):
+
+Open a new terminal:
+
+```bash
+cd backend
+source venv/bin/activate
+celery -A celery_worker.celery worker --loglevel=info
+```
+
+### 4. Start the Frontend:
 
 ```bash
 cd frontend
@@ -210,6 +248,10 @@ The application supports the following environment variables:
 | `DATABASE_URL`           | `sqlite:///app.db`         | Database connection string |
 | `REDIS_URL`              | `redis://localhost:6379/0` | Redis connection string    |
 | `SECURITY_PASSWORD_SALT` | Auto-generated             | Password hashing salt      |
+| `CELERY_BROKER_URL`      | `redis://localhost:6379/1` | Redis DB for Celery Broker |
+| `CELERY_RESULT_BACKEND`  | `redis://localhost:6379/1` | Redis DB for Celery Results|
+| `MAIL_USERNAME`          | None                       | SMTP Email Username        |
+| `MAIL_PASSWORD`          | None                       | SMTP Email Password        |
 
 ### Database Configuration
 

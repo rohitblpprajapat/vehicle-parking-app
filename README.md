@@ -105,6 +105,9 @@ CELERY_RESULT_BACKEND="redis://localhost:6379/1"
 # Email (Optional - for reports)
 MAIL_USERNAME="your-email@gmail.com"
 MAIL_PASSWORD="your-app-password"
+
+# JWT Token
+JWT_SECRET_KEY="your-jwt-secret-key"
 ```
 
 #### Initialize the database:
@@ -189,6 +192,16 @@ source venv/bin/activate
 celery -A celery_worker.celery worker --loglevel=info
 ```
 
+### 3.1 Start Celery Beat (Periodic Tasks):
+
+If you have periodic tasks (e.g., reservation expiry checks), run the beat scheduler in a separate terminal:
+
+```bash
+cd backend
+source venv/bin/activate
+celery -A celery_worker.celery beat --loglevel=info
+```
+
 ### 4. Start the Frontend:
 
 ```bash
@@ -252,6 +265,7 @@ The application supports the following environment variables:
 | `CELERY_RESULT_BACKEND`  | `redis://localhost:6379/1` | Redis DB for Celery Results|
 | `MAIL_USERNAME`          | None                       | SMTP Email Username        |
 | `MAIL_PASSWORD`          | None                       | SMTP Email Password        |
+| `JWT_SECRET_KEY`         | Auto-generated             | Secret key for JWT tokens  |
 
 ### Database Configuration
 
